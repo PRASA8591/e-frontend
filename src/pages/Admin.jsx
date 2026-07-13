@@ -442,9 +442,13 @@ export default function Admin() {
                       className={`flex items-center justify-between p-3 rounded-xl hover:bg-prasatek-light cursor-pointer transition border border-gray-100 shadow-sm ${selectedUser?._id === u._id ? 'bg-prasatek-light' : 'bg-white'} ${isSuspended ? 'opacity-60 grayscale' : ''}`}
                     >
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 shrink-0 relative">
-                          {initial}
-                          {isSuspended && <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></div>}
+                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 shrink-0 relative overflow-hidden">
+                          {u.picture ? (
+                            <img src={u.picture} alt={u.name} className="w-full h-full object-cover" />
+                          ) : (
+                            initial
+                          )}
+                          {isSuspended && <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full z-10"></div>}
                         </div>
                         <div className="flex-1 overflow-hidden">
                           <p className="font-bold text-slate-800 text-sm truncate">{u.name}</p>
@@ -478,9 +482,13 @@ export default function Admin() {
                 <div className="p-6 border-b border-gray-100 bg-prasatek-light shrink-0">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-prasatek-dark rounded-full flex items-center justify-center text-white font-bold text-xl relative">
-                        {(selectedUser.name || '?').charAt(0).toUpperCase()}
-                        <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${selectedUser.status === 'suspended' ? 'bg-red-500' : 'bg-green-500'} border-2 border-prasatek-light rounded-full`}></div>
+                      <div className="w-12 h-12 bg-prasatek-dark rounded-full flex items-center justify-center text-white font-bold text-xl relative overflow-hidden">
+                        {selectedUser.picture ? (
+                          <img src={selectedUser.picture} alt={selectedUser.name} className="w-full h-full object-cover" />
+                        ) : (
+                          (selectedUser.name || '?').charAt(0).toUpperCase()
+                        )}
+                        <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${selectedUser.status === 'suspended' ? 'bg-red-500' : 'bg-green-500'} border-2 border-prasatek-light rounded-full z-10`}></div>
                       </div>
                       <div>
                         <h2 className="text-xl font-extrabold text-slate-900">{selectedUser.name}</h2>

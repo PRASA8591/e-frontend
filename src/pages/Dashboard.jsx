@@ -316,9 +316,13 @@ export default function Dashboard() {
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-3">
               <div className="relative w-12 h-12 rounded-full border-2 border-prasatek-primary bg-prasatek-light flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                <span className="text-prasatek-primary font-bold text-lg">
-                  {(user?.name || 'U').charAt(0).toUpperCase()}
-                </span>
+                {user?.picture ? (
+                  <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-prasatek-primary font-bold text-lg">
+                    {(user?.name || 'U').charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Welcome back</p>
