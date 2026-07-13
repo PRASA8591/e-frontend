@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-prasatek-primary: #0b8c5a;
+  --color-prasatek-light: #eef2f6;
+  --color-prasatek-dark: #1e293b;
+}
+
+/* Custom CSS overrides */
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px #eef2f6 inset !important;
+}
+
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom active admin tabs */
+.tab-active {
+  border-bottom: 2px solid #0b8c5a;
+  color: #0b8c5a;
+  font-weight: 800;
+}
+
+.tab-inactive {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.tab-inactive:hover {
+  color: #334155;
+}
+
+/* Custom toggle checkbox styling */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #0b8c5a;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #0b8c5a;
+}
