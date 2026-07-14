@@ -8,7 +8,7 @@ export default function Admin() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('users'); // dashboard, users, orgs, settings
+  const [activeTab, setActiveTab] = useState('users'); // dashboard, users, orgs, messages, settings
   const [stats, setStats] = useState({ totalUsers: 0, privilegedUsers: 0, suspendedUsers: 0, totalOrgs: 1 });
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +18,14 @@ export default function Admin() {
   const [userAccounts, setUserAccounts] = useState([]);
   const [userTransactions, setUserTransactions] = useState([]);
   const [userFinancialsLoading, setUserFinancialsLoading] = useState(false);
+
+  // Contact support messages
+  const [contacts, setContacts] = useState([]);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsSearchQuery, setContactsSearchQuery] = useState('');
+  const [contactsFilterCategory, setContactsFilterCategory] = useState('All');
+  const [contactsFilterStatus, setContactsFilterStatus] = useState('All');
 
   // Manual Add User Modal
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -75,15 +83,55 @@ export default function Admin() {
     }
   };
 
+  const fetchContacts = async () => {
+    try {
+      setContactsLoading(true);
+      const res = await axios.get('/api/contacts');
+      setContacts(res.data);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  const handleMarkContactAsRead = async (id) => {
+    try {
+      await axios.put(`/api/contacts/${id}/read`);
+      setContacts(prev => prev.map(c => c._id === id ? { ...c, status: 'read' } : c));
+      if (selectedContact && selectedContact._id === id) {
+        setSelectedContact(prev => ({ ...prev, status: 'read' }));
+      }
+    } catch (error) {
+      alert('Failed to mark message as read.');
+    }
+  };
+
+  const handleDeleteContact = async (id) => {
+    if (confirm('Are you sure you want to permanently delete this contact message?')) {
+      try {
+         await axios.delete(`/api/contacts/${id}`);
+         setContacts(prev => prev.filter(c => c._id !== id));
+         if (selectedContact && selectedContact._id === id) {
+           setSelectedContact(null);
+         }
+      } catch (error) {
+         alert('Failed to delete message.');
+      }
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchUsers();
+    fetchContacts();
   }, []);
 
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
     if (tab === 'dashboard') fetchStats();
     if (tab === 'users') fetchUsers();
+    if (tab === 'messages') fetchContacts();
   };
 
   const loadUserDetails = async (u) => {
@@ -133,6 +181,30 @@ export default function Admin() {
       fetchUsers();
     } catch (error) {
       alert('Failed to update branch.');
+    }
+  };
+
+  const handlePlanChange = async (e) => {
+    if (!selectedUser) return;
+    const newPlan = e.target.value;
+    try {
+      const res = await axios.put(`/api/admin/users/${selectedUser._id}/plan`, { plan: newPlan });
+      setSelectedUser(prev => ({ ...prev, plan: res.data.plan, planExpiryDate: res.data.planExpiryDate, planStatus: res.data.planStatus, planType: res.data.planType }));
+      fetchUsers();
+    } catch (error) {
+      alert('Failed to update plan.');
+    }
+  };
+
+  const handlePlanTypeChange = async (e) => {
+    if (!selectedUser) return;
+    const newPlanType = e.target.value;
+    try {
+      const res = await axios.put(`/api/admin/users/${selectedUser._id}/plan`, { planType: newPlanType });
+      setSelectedUser(prev => ({ ...prev, plan: res.data.plan, planExpiryDate: res.data.planExpiryDate, planStatus: res.data.planStatus, planType: res.data.planType }));
+      fetchUsers();
+    } catch (error) {
+      alert('Failed to update billing cycle.');
     }
   };
 
@@ -272,6 +344,21 @@ export default function Admin() {
     (u._id && u._id.includes(searchQuery))
   );
 
+  const filteredContacts = contacts.filter(c => {
+    const matchesSearch = 
+      (c.name && c.name.toLowerCase().includes(contactsSearchQuery.toLowerCase())) ||
+      (c.email && c.email.toLowerCase().includes(contactsSearchQuery.toLowerCase())) ||
+      (c.subject && c.subject.toLowerCase().includes(contactsSearchQuery.toLowerCase())) ||
+      (c.message && c.message.toLowerCase().includes(contactsSearchQuery.toLowerCase()));
+      
+    const matchesCategory = contactsFilterCategory === 'All' || c.category === contactsFilterCategory;
+    const matchesStatus = contactsFilterStatus === 'All' || c.status === contactsFilterStatus;
+    
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const unreadContactsCount = contacts.filter(c => c.status === 'unread').length;
+
   // Compute actual account balances for detail panel
   const accountBalances = {};
   userAccounts.forEach(acc => {
@@ -319,6 +406,17 @@ export default function Admin() {
                 Organizations
               </button>
               <button 
+                className={`${activeTab === 'messages' ? 'tab-active' : 'tab-inactive'} h-full px-1 py-4 text-sm transition-colors focus:outline-none cursor-pointer flex items-center gap-1.5`}
+                onClick={() => handleTabSwitch('messages')}
+              >
+                Support Inquiries
+                {unreadContactsCount > 0 && (
+                  <span className="bg-red-500 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-full leading-none animate-pulse">
+                    {unreadContactsCount}
+                  </span>
+                )}
+              </button>
+              <button 
                 className={`${activeTab === 'settings' ? 'tab-active' : 'tab-inactive'} h-full px-1 py-4 text-sm transition-colors focus:outline-none cursor-pointer`}
                 onClick={() => handleTabSwitch('settings')}
               >
@@ -327,6 +425,12 @@ export default function Admin() {
             </div>
 
             <div className="flex items-center gap-4">
+              <Link 
+                to="/dashboard"
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 transition"
+              >
+                App Dashboard &rarr;
+              </Link>
               <span className="text-sm font-bold text-slate-500 hidden sm:block">{user?.email}</span>
               <button 
                 onClick={() => logout()}
@@ -455,12 +559,23 @@ export default function Admin() {
                           <p className="text-xs text-gray-500 truncate">{u.email}</p>
                         </div>
                       </div>
-                      {u.role === 'admin' && (
-                        <span className="text-[9px] font-extrabold bg-prasatek-dark text-white px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">Admin</span>
-                      )}
-                      {u.role === 'manager' && (
-                        <span className="text-[9px] font-extrabold bg-blue-600 text-white px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">Manager</span>
-                      )}
+                      <div className="flex flex-col gap-1 items-end shrink-0">
+                        {u.role === 'admin' && (
+                          <span className="text-[8px] font-extrabold bg-prasatek-dark text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Admin</span>
+                        )}
+                        {u.role === 'manager' && (
+                          <span className="text-[8px] font-extrabold bg-blue-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Manager</span>
+                        )}
+                        <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          u.plan === 'enterprise' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : u.plan === 'pro' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {u.plan || 'free'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })
@@ -521,6 +636,31 @@ export default function Admin() {
                           <option value="suspended" className="text-red-500 font-bold">Suspended</option>
                         </select>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[9px] font-bold text-gray-500 uppercase">Active Plan:</label>
+                        <select 
+                          value={selectedUser.plan || 'free'}
+                          onChange={handlePlanChange}
+                          className="bg-white border border-gray-200 text-xs font-bold rounded-lg px-2 py-1 outline-none text-slate-700 cursor-pointer"
+                        >
+                          <option value="free">Free Plan</option>
+                          <option value="pro">Pro Plan</option>
+                          <option value="enterprise">Enterprise Plan</option>
+                        </select>
+                      </div>
+                      {selectedUser.plan && selectedUser.plan !== 'free' && (
+                        <div className="flex items-center gap-2">
+                          <label className="text-[9px] font-bold text-gray-500 uppercase">Billing Cycle:</label>
+                          <select 
+                            value={selectedUser.planType || 'monthly'}
+                            onChange={handlePlanTypeChange}
+                            className="bg-white border border-gray-200 text-xs font-bold rounded-lg px-2 py-1 outline-none text-slate-700 cursor-pointer"
+                          >
+                            <option value="monthly">Monthly billing</option>
+                            <option value="yearly">Yearly billing</option>
+                          </select>
+                        </div>
+                      )}
                       <div className="flex gap-2 mt-2 w-full justify-end flex-wrap">
                         <label className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-extrabold px-3 py-1.5 rounded-lg transition shadow-sm cursor-pointer select-none">
                           IMPORT JSON BACKUP
@@ -684,6 +824,170 @@ export default function Admin() {
                 </div>
               </div>
             ))}
+          </div>
+        </main>
+      )}
+
+      {/* Support Inquiries View */}
+      {activeTab === 'messages' && (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 relative w-full flex-1">
+          {/* Messages List Inbox */}
+          <div className="w-full md:w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[75vh]">
+            <div className="p-5 border-b border-gray-100 space-y-3">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-800">Support Inquiries</h2>
+                <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wide">
+                  {contacts.length} Total • {unreadContactsCount} Unread
+                </p>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search subject, name, body..." 
+                  value={contactsSearchQuery}
+                  onChange={(e) => setContactsSearchQuery(e.target.value)}
+                  className="w-full bg-prasatek-light text-slate-800 text-xs font-bold rounded-xl pl-4 pr-4 py-2.5 border-none outline-none focus:ring-1 focus:ring-prasatek-primary transition"
+                />
+              </div>
+
+              {/* Filters dropdown row */}
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={contactsFilterCategory}
+                  onChange={(e) => setContactsFilterCategory(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-[10px] font-bold rounded-lg px-2 py-1.5 outline-none text-slate-700 cursor-pointer"
+                >
+                  <option value="All">All Categories</option>
+                  <option value="General Inquiry">General</option>
+                  <option value="Technical Support">Technical</option>
+                  <option value="Billing & Pricing">Billing</option>
+                  <option value="Partnership">Partnership</option>
+                </select>
+
+                <select
+                  value={contactsFilterStatus}
+                  onChange={(e) => setContactsFilterStatus(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-[10px] font-bold rounded-lg px-2 py-1.5 outline-none text-slate-700 cursor-pointer"
+                >
+                  <option value="All">All Status</option>
+                  <option value="unread">Unread</option>
+                  <option value="read">Read</option>
+                </select>
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto hide-scroll p-3 space-y-2">
+              {contactsLoading ? (
+                <div className="text-center py-8">
+                  <div className="w-6 h-6 border-2 border-prasatek-light border-t-prasatek-primary rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Inbox...</p>
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <p className="text-xs font-bold text-gray-400 text-center py-8">No messages matching criteria.</p>
+              ) : (
+                filteredContacts.map(c => {
+                  const isSelected = selectedContact?._id === c._id;
+                  const isUnread = c.status === 'unread';
+                  return (
+                    <div 
+                      key={c._id}
+                      onClick={() => {
+                        setSelectedContact(c);
+                        if (isUnread) handleMarkContactAsRead(c._id);
+                      }}
+                      className={`p-3.5 rounded-xl border hover:bg-prasatek-light cursor-pointer transition flex flex-col gap-1.5 ${
+                        isSelected 
+                          ? 'bg-prasatek-light border-prasatek-primary/20 shadow-sm' 
+                          : 'bg-white border-slate-100 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                          c.category === 'Technical Support' 
+                            ? 'bg-red-50 text-red-600' 
+                            : c.category === 'Billing & Pricing' 
+                              ? 'bg-amber-50 text-amber-600' 
+                              : 'bg-green-50 text-prasatek-primary'
+                        }`}>
+                          {c.category.split(' ')[0]}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {isUnread && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {new Date(c.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-bold text-slate-800 text-xs truncate">{c.subject}</p>
+                        <p className="text-[10px] text-gray-500 truncate mt-0.5">{c.name} • {c.email}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Message Detail Reader */}
+          <div className="w-full md:w-2/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[75vh] overflow-hidden">
+            {!selectedContact ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                <svg className="w-16 h-16 mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 19v-8.93a2 2 0 01.89-1.664l8-4a2 2 0 011.78 0l8 4A2 2 0 0122 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-2.25-1.5a2 2 0 00-1.78 0l-2.25 1.5"></path>
+                </svg>
+                <p className="font-bold text-sm">Select an inquiry to read support message</p>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full overflow-hidden">
+                <div className="p-6 border-b border-gray-100 bg-prasatek-light shrink-0">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <span className="text-[9px] font-extrabold bg-prasatek-dark text-white px-2.5 py-1 rounded-md uppercase tracking-wider">
+                        {selectedContact.category}
+                      </span>
+                      <h2 className="text-xl font-extrabold text-slate-900 mt-3">{selectedContact.subject}</h2>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">
+                        From: <span className="font-extrabold text-slate-800">{selectedContact.name}</span> ({selectedContact.email})
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 items-end">
+                      <span className="text-xs text-gray-400 font-bold">
+                        Submitted: {new Date(selectedContact.createdAt).toLocaleString()}
+                      </span>
+                      
+                      <div className="flex gap-2 mt-2">
+                        <a 
+                          href={`mailto:${selectedContact.email}?subject=Re: [ExpenseTracker Pro Support] ${selectedContact.subject}`}
+                          className="bg-prasatek-primary hover:bg-[#09734a] text-white text-[10px] font-extrabold px-3.5 py-2 rounded-lg transition shadow-sm flex items-center gap-1 cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                          </svg>
+                          Reply Email
+                        </a>
+                        <button 
+                          onClick={() => handleDeleteContact(selectedContact._id)}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-extrabold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer"
+                        >
+                          Delete Message
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+                  <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm text-sm font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedContact.message}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       )}

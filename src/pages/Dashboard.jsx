@@ -4,7 +4,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-
+import ProfileSidebar from '../components/ProfileSidebar';
+import NotificationDropdown from '../components/NotificationDropdown';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -18,8 +19,12 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Profile sidebar & Custom categories state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
+
   // Currency State
-  const [activeCurrency, setActiveCurrency] = useState('RS');
+  const [activeCurrency, setActiveCurrency] = useState(user?.currency || 'RS');
   const [budgetLimitBase, setBudgetLimitBase] = useState(user?.monthlyBudgetLimit || 50000);
 
   // Forms State
@@ -33,6 +38,7 @@ export default function Dashboard() {
 
   // Account Modal
   const [showAccModal, setShowAccModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [newAccName, setNewAccName] = useState('');
   const [newAccBalance, setNewAccBalance] = useState('');
   const [submittingAcc, setSubmittingAcc] = useState(false);
@@ -54,6 +60,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.monthlyBudgetLimit) {
       setBudgetLimitBase(user.monthlyBudgetLimit);
+    }
+    if (user?.currency) {
+      setActiveCurrency(user.currency);
     }
   }, [user]);
 
@@ -92,6 +101,14 @@ export default function Dashboard() {
     await updateBudget(limitInBase);
   };
 
+  const handleAddAccountClick = () => {
+    if (user?.plan === 'free' && accounts.length >= 1) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setShowAccModal(true);
+  };
+
   // Add account
   const handleAddAccountSubmit = async (e) => {
     e.preventDefault();
@@ -117,18 +134,26 @@ export default function Dashboard() {
   const handleAddTxSubmit = async (e) => {
     e.preventDefault();
     if (!txAccountId || !txDescription || isNaN(parseFloat(txAmount)) || !txDate) return;
+    
+    const finalCategory = txCategory === 'Custom' ? customCategoryName : txCategory;
+    if (!finalCategory) {
+      alert("Please enter a custom category name.");
+      return;
+    }
+
     setSubmittingTx(true);
     try {
       await axios.post('/api/transactions', {
         accountId: txAccountId,
         date: txDate,
         type: txType,
-        category: txCategory,
+        category: finalCategory,
         description: txDescription,
         amount: parseFloat(txAmount)
       });
       setTxDescription('');
       setTxAmount('');
+      setCustomCategoryName('');
       fetchData();
     } catch (error) {
       alert(error.response?.data?.message || 'Error saving transaction.');
@@ -268,6 +293,10 @@ export default function Dashboard() {
 
   // Export CSV
   const handleExportCsv = () => {
+    if (user?.plan === 'free') {
+      alert("Excel/CSV export is a Pro/Enterprise feature. Please upgrade your plan to unlock this.");
+      return;
+    }
     if (transactions.length === 0) return alert('No data available to export.');
     let csvContent = 'Date,Month,Account,Type,Category,Description,Amount (Base RS)\n';
 
@@ -308,32 +337,39 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center items-center md:py-6 md:px-4 text-slate-800 font-sans antialiased">
-      <div className="w-full max-w-[1400px] bg-white md:shadow-2xl md:rounded-[2rem] overflow-hidden h-screen md:h-[95vh] relative border border-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex justify-center items-center md:py-6 md:px-4 text-slate-800 dark:text-slate-200 font-sans antialiased transition-colors duration-300">
+      <div className="w-full max-w-[1400px] bg-white dark:bg-slate-900 md:shadow-2xl md:rounded-[2rem] overflow-hidden h-screen md:h-[95vh] relative border border-gray-100 dark:border-slate-800 flex flex-col">
         
         {/* Header bar */}
-        <div className="bg-white px-6 pt-6 pb-6 shadow-sm border-b border-gray-100 flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
+        <div className="bg-white dark:bg-slate-900 px-6 pt-6 pb-6 shadow-sm border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
-            <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-full border-2 border-prasatek-primary bg-prasatek-light flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                {user?.picture ? (
+            <div 
+              onClick={() => setIsSidebarOpen(true)} 
+              className="flex items-center gap-3 cursor-pointer group hover:opacity-95 transition"
+            >
+              <div className="relative w-12 h-12 rounded-full border-2 border-prasatek-primary bg-prasatek-light dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-sm transition group-hover:scale-105">
+                {user?.profilePhoto ? (
+                  <img src={user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
+                ) : user?.picture ? (
                   <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-prasatek-primary font-bold text-lg">
+                  <span className="text-prasatek-primary dark:text-green-400 font-bold text-lg">
                     {(user?.name || 'U').charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Welcome back</p>
-                <p className="text-sm font-extrabold text-slate-800 truncate max-w-[150px]">{user?.name || 'User'}</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Welcome back</p>
+                <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 truncate max-w-[150px]">{user?.name || 'User'}</p>
               </div>
             </div>
+            
             <div className="flex md:hidden items-center gap-2">
+              <NotificationDropdown />
               <select 
                 value={activeCurrency}
                 onChange={handleCurrencyChange}
-                className="text-[10px] font-bold bg-gray-50 text-slate-700 rounded-lg px-2 py-1.5 outline-none border border-gray-200 cursor-pointer"
+                className="text-[10px] font-bold bg-gray-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg px-2 py-1.5 outline-none border border-gray-200 dark:border-slate-700 cursor-pointer"
               >
                 <option value="RS">RS</option>
                 <option value="USD">USD</option>
@@ -348,7 +384,7 @@ export default function Dashboard() {
               </select>
               <button 
                 onClick={handleSignOut}
-                className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition cursor-pointer"
+                className="text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
               >
                 Sign Out
               </button>
@@ -356,15 +392,16 @@ export default function Dashboard() {
           </div>
           
           <div className="text-center md:text-right w-full md:w-auto">
-            <h1 className="text-[10px] font-bold mb-1 text-slate-400 uppercase tracking-[0.15em]">Total Net Worth</h1>
-            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">{formatMoney(globalTotal)}</h2>
+            <h1 className="text-[10px] font-bold mb-1 text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Total Net Worth</h1>
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">{formatMoney(globalTotal)}</h2>
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <NotificationDropdown />
             <select 
               value={activeCurrency}
               onChange={handleCurrencyChange}
-              className="text-[11px] font-bold bg-gray-50 text-slate-700 rounded-lg px-3 py-2 outline-none border border-gray-200 cursor-pointer"
+              className="text-[11px] font-bold bg-gray-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg px-3 py-2 outline-none border border-gray-200 dark:border-slate-700 cursor-pointer"
             >
               <option value="RS">LKR (RS)</option>
               <option value="USD">USD ($)</option>
@@ -379,7 +416,7 @@ export default function Dashboard() {
             </select>
             <button 
               onClick={handleSignOut}
-              className="bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg transition cursor-pointer"
+              className="bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40 px-4 py-2 rounded-lg transition cursor-pointer"
             >
               Sign Out
             </button>
@@ -387,45 +424,54 @@ export default function Dashboard() {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-full mx-auto flex-1 overflow-y-auto hide-scroll items-start">
+        <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-full mx-auto flex-1 overflow-y-auto hide-scroll items-start bg-slate-50/50 dark:bg-slate-950/20">
           
           {/* Left Forms */}
           <div className="lg:col-span-4 flex flex-col gap-6 w-full">
             
             {/* Budget Panel */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-end mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">Monthly Budget</h3>
-                <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${spentPct >= 100 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-prasatek-primary'}`}>
-                  {Math.round(spentPct)}% Used ({monthlyExpense >= budgetLimitBase ? 'Exceeded' : 'Active'})
-                </span>
+            {user?.plan === 'free' ? (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col justify-center items-center text-center py-8 relative overflow-hidden">
+                <div className="absolute top-2.5 right-2.5 bg-slate-100 dark:bg-slate-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider text-slate-400">PRO FEATURE</div>
+                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Budget Tracking Locked</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 max-w-[200px] leading-normal">Upgrade to Pro to set limits, monitor spending meters, and get threshold warnings.</p>
+                <Link to="/upgrade" className="text-[10px] font-extrabold text-prasatek-primary dark:text-green-400 hover:underline mt-3 flex items-center gap-1 cursor-pointer">Upgrade now &rarr;</Link>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2 overflow-hidden">
-                <div 
-                  className={`h-2.5 rounded-full transition-all duration-500 ${spentPct >= 100 ? 'bg-red-500' : 'bg-prasatek-primary'}`} 
-                  style={{ width: `${spentPct}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 mt-1">
-                <span>{formatMoney(monthlyExpense)}</span>
-                <div className="flex items-center gap-1 bg-prasatek-light px-2 py-1 rounded-lg">
-                  <span className="text-slate-500 uppercase text-[9px]">Target:</span>
-                  <span className="text-slate-700 mr-0.5">{fxSymbols[activeCurrency].trim()}</span>
-                  <input 
-                    type="number" 
-                    value={Math.round(budgetLimitBase * fxRates[activeCurrency])} 
-                    onChange={handleBudgetChange}
-                    min="1" 
-                    step="500" 
-                    className="w-16 bg-transparent text-slate-800 font-extrabold outline-none text-left border-none p-0 focus:ring-0"
-                  />
+            ) : (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between items-end mb-2">
+                  <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Monthly Budget</h3>
+                  <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${spentPct >= 100 ? 'bg-red-100 dark:bg-red-950/20 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/20 text-prasatek-primary dark:text-green-400'}`}>
+                    {Math.round(spentPct)}% Used ({monthlyExpense >= budgetLimitBase ? 'Exceeded' : 'Active'})
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2.5 mb-2 overflow-hidden">
+                  <div 
+                    className={`h-2.5 rounded-full transition-all duration-500 ${spentPct >= 100 ? 'bg-red-500' : 'bg-prasatek-primary'}`} 
+                    style={{ width: `${spentPct}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 mt-1">
+                  <span>{formatMoney(monthlyExpense)}</span>
+                  <div className="flex items-center gap-1 bg-prasatek-light px-2 py-1 rounded-lg">
+                    <span className="text-slate-500 uppercase text-[9px]">Target:</span>
+                    <span className="text-slate-700 mr-0.5">{fxSymbols[activeCurrency].trim()}</span>
+                    <input 
+                      type="number" 
+                      value={Math.round(budgetLimitBase * fxRates[activeCurrency])} 
+                      onChange={handleBudgetChange}
+                      min="1" 
+                      step="500" 
+                      className="w-16 bg-transparent text-slate-800 font-extrabold outline-none text-left border-none p-0 focus:ring-0"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Add Transaction Form */}
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-              <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-4">Add Transaction</h3>
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-4">Add Transaction</h3>
               <form onSubmit={handleAddTxSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Select Account</label>
@@ -475,7 +521,7 @@ export default function Dashboard() {
                     value={txCategory}
                     onChange={(e) => setTxCategory(e.target.value)}
                     required 
-                    className="w-full bg-prasatek-light text-slate-800 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
+                    className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
                   >
                     <option value="Income">Income / Salary</option>
                     <option value="Food & Dining">Food & Dining</option>
@@ -485,8 +531,22 @@ export default function Dashboard() {
                     <option value="Hardware/Repairs">Hardware/Repairs</option>
                     <option value="Entertainment">Entertainment</option>
                     <option value="Other">Other</option>
+                    {user?.plan !== 'free' && <option value="Custom">-- Custom Category --</option>}
                   </select>
                 </div>
+                {txCategory === 'Custom' && (
+                  <div className="w-full">
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Custom Category Name</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g., Medical / Health"
+                      value={customCategoryName}
+                      onChange={(e) => setCustomCategoryName(e.target.value)}
+                      required
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
+                    />
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="w-3/5">
                     <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Remark</label>
@@ -532,7 +592,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-end mb-3">
                 <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">My Accounts</h3>
                 <button 
-                  onClick={() => setShowAccModal(true)}
+                  onClick={handleAddAccountClick}
                   className="text-xs bg-prasatek-dark text-white px-3 py-1.5 rounded-lg shadow-sm font-extrabold hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                 >
                   + Add Account
@@ -794,6 +854,47 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {showUpgradeModal && (
+          <div className="absolute inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-gray-100 dark:border-slate-800">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-950/20 mb-4">
+                <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-1">Upgrade Your Plan</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-5 font-bold leading-normal">
+                You are currently using the <span className="text-prasatek-primary dark:text-green-400 uppercase font-extrabold">Free Plan</span>, which limits your account allocation to exactly 1 account.
+              </p>
+              
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-normal mb-6 space-y-2 border border-slate-100 dark:border-slate-800">
+                <p className="uppercase text-[9px] text-slate-400">Upgrade Instructions:</p>
+                <p>1. Click the button below to navigate to the pricing matrix.</p>
+                <p>2. Choose either the <strong className="text-green-600 dark:text-green-400">Pro Plan</strong> (up to 3 accounts) or the <strong className="text-purple-600 dark:text-purple-400">Enterprise Plan</strong> (unlimited accounts).</p>
+                <p>3. Confirm payment to unlock features instantly.</p>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="w-1/2 bg-[#e2e8f0] hover:bg-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl transition cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <Link 
+                  to="/upgrade"
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="w-1/2 bg-prasatek-primary hover:bg-[#09734a] text-white font-bold py-3 rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer text-xs"
+                >
+                  Upgrade Plan
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ProfileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       </div>
     </div>

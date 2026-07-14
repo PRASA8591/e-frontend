@@ -7,6 +7,10 @@ import Admin from './pages/Admin';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Contact from './pages/Contact';
+import Settings from './pages/Settings';
+import Subscription from './pages/Subscription';
+import Upgrade from './pages/Upgrade';
+import Usage from './pages/Usage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -71,6 +75,38 @@ function AppContent() {
           <AdminRoute>
             <Admin />
           </AdminRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscription"
+        element={
+          <ProtectedRoute>
+            <Subscription />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/upgrade"
+        element={
+          <ProtectedRoute>
+            <Upgrade />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/usage"
+        element={
+          <ProtectedRoute>
+            <Usage />
+          </ProtectedRoute>
         }
       />
       <Route path="*" element={<Navigate to="/" />} />

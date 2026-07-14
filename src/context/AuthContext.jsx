@@ -38,21 +38,29 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, [token]);
 
-  const login = async (email, password) => {
+  // Sync Dark/Light theme class to root html element
+  useEffect(() => {
+    if (user?.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [user?.theme]);
+
+  const login = async (emailOrUserData, password) => {
+    if (typeof emailOrUserData === 'object') {
+      // Direct payload state update from settings/upgrade forms
+      const { token: userToken, ...userData } = emailOrUserData;
+      if (userToken) setToken(userToken);
+      setUser(userData);
+      return { success: true };
+    }
+
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      setToken(res.data.token);
-      setUser({
-        _id: res.data._id,
-        name: res.data.name,
-        email: res.data.email,
-        mobile: res.data.mobile,
-        picture: res.data.picture,
-        role: res.data.role,
-        status: res.data.status,
-        org: res.data.org,
-        monthlyBudgetLimit: res.data.monthlyBudgetLimit
-      });
+      const res = await axios.post('/api/auth/login', { email: emailOrUserData, password });
+      const { token: userToken, ...userData } = res.data;
+      setToken(userToken);
+      setUser(userData);
       return { success: true };
     } catch (error) {
       return {
@@ -65,18 +73,9 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (credential, accessToken) => {
     try {
       const res = await axios.post('/api/auth/google', { credential, accessToken });
-      setToken(res.data.token);
-      setUser({
-        _id: res.data._id,
-        name: res.data.name,
-        email: res.data.email,
-        mobile: res.data.mobile,
-        picture: res.data.picture,
-        role: res.data.role,
-        status: res.data.status,
-        org: res.data.org,
-        monthlyBudgetLimit: res.data.monthlyBudgetLimit
-      });
+      const { token: userToken, ...userData } = res.data;
+      setToken(userToken);
+      setUser(userData);
       return { success: true };
     } catch (error) {
       return {
@@ -90,18 +89,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, mobile) => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password, mobile });
-      setToken(res.data.token);
-      setUser({
-        _id: res.data._id,
-        name: res.data.name,
-        email: res.data.email,
-        mobile: res.data.mobile,
-        picture: res.data.picture,
-        role: res.data.role,
-        status: res.data.status,
-        org: res.data.org,
-        monthlyBudgetLimit: res.data.monthlyBudgetLimit
-      });
+      const { token: userToken, ...userData } = res.data;
+      setToken(userToken);
+      setUser(userData);
       return { success: true };
     } catch (error) {
       return {
