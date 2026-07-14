@@ -38,14 +38,36 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, [token]);
 
+  const applyThemeClass = (themeName) => {
+    const root = document.documentElement;
+    root.classList.remove('dark', 'theme-forest', 'theme-nordic', 'theme-cyberpunk');
+    
+    if (themeName === 'dark') {
+      root.classList.add('dark');
+    } else if (themeName === 'forest') {
+      root.classList.add('dark', 'theme-forest');
+    } else if (themeName === 'nordic') {
+      root.classList.add('dark', 'theme-nordic');
+    } else if (themeName === 'cyberpunk') {
+      root.classList.add('dark', 'theme-cyberpunk');
+    }
+  };
+
   // Sync Dark/Light theme class to root html element
   useEffect(() => {
-    if (user?.theme === 'dark') {
-      document.documentElement.classList.add('dark');
+    if (user?.theme) {
+      applyThemeClass(user.theme);
+      localStorage.setItem('theme', user.theme);
     } else {
-      document.documentElement.classList.remove('dark');
+      const cached = localStorage.getItem('theme') || 'light';
+      applyThemeClass(cached);
     }
   }, [user?.theme]);
+
+  useEffect(() => {
+    const cached = localStorage.getItem('theme') || 'light';
+    applyThemeClass(cached);
+  }, []);
 
   const login = async (emailOrUserData, password) => {
     if (typeof emailOrUserData === 'object') {

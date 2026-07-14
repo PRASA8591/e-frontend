@@ -17,9 +17,9 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-prasatek-light border-t-prasatek-primary rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading Session...</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center transition-colors">
+        <div className="w-10 h-10 border-4 border-prasatek-light dark:border-slate-800 border-t-prasatek-primary rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Loading Session...</p>
       </div>
     );
   }
@@ -36,9 +36,9 @@ const AdminRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-prasatek-light border-t-prasatek-primary rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Verifying Privileges...</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center transition-colors">
+        <div className="w-10 h-10 border-4 border-prasatek-light dark:border-slate-800 border-t-prasatek-primary rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Verifying Privileges...</p>
       </div>
     );
   }

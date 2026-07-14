@@ -82,7 +82,7 @@ export default function NotificationDropdown() {
 
       {/* Floating Dropdown Pane */}
       {isOpen && (
-        <div className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
+        <div className="fixed md:absolute top-20 md:top-auto left-4 right-4 md:left-auto md:right-0 mt-2.5 w-auto md:w-80 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
           {/* Header */}
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
             <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">Notifications</span>

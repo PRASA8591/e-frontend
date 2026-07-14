@@ -57,6 +57,19 @@ export default function Dashboard() {
   const [confirmMsg, setConfirmMsg] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
 
+  // Alert modal
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMsg, setAlertMsg] = useState('');
+  const [alertType, setAlertType] = useState('info'); // info, error, success
+
+  const triggerAlert = (title, message, type = 'info') => {
+    setAlertTitle(title);
+    setAlertMsg(message);
+    setAlertType(type);
+    setShowAlert(true);
+  };
+
   useEffect(() => {
     if (user?.monthlyBudgetLimit) {
       setBudgetLimitBase(user.monthlyBudgetLimit);
@@ -124,7 +137,7 @@ export default function Dashboard() {
       setShowAccModal(false);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving account.');
+      triggerAlert('Account Error', error.response?.data?.message || 'Error saving account.', 'error');
     } finally {
       setSubmittingAcc(false);
     }
@@ -137,7 +150,7 @@ export default function Dashboard() {
     
     const finalCategory = txCategory === 'Custom' ? customCategoryName : txCategory;
     if (!finalCategory) {
-      alert("Please enter a custom category name.");
+      triggerAlert('Validation Warning', 'Please enter a custom category name.', 'info');
       return;
     }
 
@@ -156,7 +169,7 @@ export default function Dashboard() {
       setCustomCategoryName('');
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving transaction.');
+      triggerAlert('Transaction Error', error.response?.data?.message || 'Error saving transaction.', 'error');
     } finally {
       setSubmittingTx(false);
     }
@@ -171,7 +184,7 @@ export default function Dashboard() {
         await axios.delete(`/api/transactions/${id}`);
         fetchData();
       } catch (error) {
-        alert('Failed to delete transaction.');
+        triggerAlert('Deletion Error', 'Failed to delete transaction.', 'error');
       }
       setShowConfirm(false);
     });
@@ -187,7 +200,7 @@ export default function Dashboard() {
         await axios.delete(`/api/accounts/${id}`);
         fetchData();
       } catch (error) {
-        alert('Failed to delete account.');
+        triggerAlert('Deletion Error', 'Failed to delete account.', 'error');
       }
       setShowConfirm(false);
     });
@@ -294,13 +307,19 @@ export default function Dashboard() {
   // Export CSV
   const handleExportCsv = () => {
     if (user?.plan === 'free') {
-      alert("Excel/CSV export is a Pro/Enterprise feature. Please upgrade your plan to unlock this.");
+      triggerAlert('Premium Feature', 'Excel/CSV export is a Pro/Enterprise feature. Please upgrade your plan to unlock this.', 'info');
       return;
     }
-    if (transactions.length === 0) return alert('No data available to export.');
+    if (transactions.length === 0) {
+      triggerAlert('Export Notice', 'No data available to export.', 'info');
+      return;
+    }
     let csvContent = 'Date,Month,Account,Type,Category,Description,Amount (Base RS)\n';
 
-    if (filteredTx.length === 0) return alert('No transactions match the current filters.');
+    if (filteredTx.length === 0) {
+      triggerAlert('Filter Notice', 'No transactions match the current filters.', 'info');
+      return;
+    }
 
     filteredTx.forEach(tx => {
       const accRef = accounts.find(a => a._id === tx.accountId);
@@ -470,8 +489,8 @@ export default function Dashboard() {
             )}
 
             {/* Add Transaction Form */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-4">Add Transaction</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800">
+              <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide mb-4">Add Transaction</h3>
               <form onSubmit={handleAddTxSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Select Account</label>
@@ -479,7 +498,7 @@ export default function Dashboard() {
                     value={txAccountId}
                     onChange={(e) => setTxAccountId(e.target.value)}
                     required 
-                    className="w-full bg-prasatek-light text-slate-800 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
+                    className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
                   >
                     {accounts.length === 0 ? (
                       <option value="">-- Create an account first --</option>
@@ -500,7 +519,7 @@ export default function Dashboard() {
                       value={txDate}
                       onChange={(e) => setTxDate(e.target.value)}
                       required 
-                      className="w-full bg-prasatek-light text-slate-800 text-sm font-bold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
                     />
                   </div>
                   <div className="w-1/2">
@@ -508,7 +527,7 @@ export default function Dashboard() {
                     <select 
                       value={txType}
                       onChange={(e) => setTxType(e.target.value)}
-                      className="w-full bg-prasatek-light text-sm font-extrabold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-extrabold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
                     >
                       <option value="add" className="text-prasatek-primary">Income (+)</option>
                       <option value="deduct" className="text-red-500">Expense (-)</option>
@@ -556,7 +575,7 @@ export default function Dashboard() {
                       value={txDescription}
                       onChange={(e) => setTxDescription(e.target.value)}
                       required 
-                      className="w-full bg-prasatek-light text-slate-800 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
                     />
                   </div>
                   <div className="w-2/5">
@@ -569,7 +588,7 @@ export default function Dashboard() {
                       required 
                       min="0.01" 
                       step="0.01"
-                      className="w-full bg-prasatek-light text-slate-800 text-sm font-bold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-3 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none"
                     />
                   </div>
                 </div>
@@ -590,7 +609,7 @@ export default function Dashboard() {
             {/* Accounts Panel */}
             <div>
               <div className="flex justify-between items-end mb-3">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">My Accounts</h3>
+                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">My Accounts</h3>
                 <button 
                   onClick={handleAddAccountClick}
                   className="text-xs bg-prasatek-dark text-white px-3 py-1.5 rounded-lg shadow-sm font-extrabold hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
@@ -600,17 +619,17 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-4 overflow-x-auto pb-2 snap-x hide-scroll">
                 {accounts.length === 0 ? (
-                  <div className="text-xs text-gray-400 font-bold italic p-6 border-2 border-dashed border-gray-200 rounded-2xl w-full text-center bg-white">
+                  <div className="text-xs text-gray-400 dark:text-slate-500 font-bold italic p-6 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl w-full text-center bg-white dark:bg-slate-900">
                     No accounts found. Click '+ Add Account'.
                   </div>
                 ) : (
                   accounts.map(acc => {
                     const currentBal = accountBalances[acc._id] || 0;
                     return (
-                      <div key={acc._id} className="min-w-[140px] snap-center bg-white border border-gray-100 p-4 rounded-2xl shadow-sm relative group shrink-0">
+                      <div key={acc._id} className="min-w-[140px] snap-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-2xl shadow-sm relative group shrink-0">
                         <button 
                           onClick={() => handleDeleteAccount(acc._id)}
-                          className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-lg transition cursor-pointer"
+                          className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/20 p-1.5 rounded-lg transition cursor-pointer"
                           title="Delete Account"
                         >
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -618,7 +637,7 @@ export default function Dashboard() {
                           </svg>
                         </button>
                         <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider truncate pr-6">{acc.name}</p>
-                        <p className={`text-xl font-extrabold mt-1 truncate ${currentBal < 0 ? 'text-red-500' : 'text-slate-800'}`}>
+                        <p className={`text-xl font-extrabold mt-1 truncate ${currentBal < 0 ? 'text-red-500' : 'text-slate-800 dark:text-slate-100'}`}>
                           {formatMoney(currentBal)}
                         </p>
                       </div>
@@ -632,21 +651,21 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start w-full">
               
               {/* Doughnut Chart */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col w-full h-[350px]">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide w-full text-left mb-4">Account Balances</h3>
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col w-full h-[350px]">
+                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide w-full text-left mb-4">Account Balances</h3>
                 <div className="relative flex-1 w-full flex items-center justify-center">
                   {showChart ? (
                     <Doughnut data={doughnutData} options={doughnutOptions} />
                   ) : (
-                    <p className="text-xs font-bold text-gray-400 uppercase">No Data Available</p>
+                    <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase">No Data Available</p>
                   )}
                 </div>
               </div>
 
               {/* Transactions History */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col h-[500px] lg:h-[600px] w-full">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col h-[500px] lg:h-[600px] w-full">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">History</h3>
+                  <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">History</h3>
                   <button 
                     onClick={handleExportCsv}
                     className="bg-prasatek-primary hover:bg-[#09734a] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
@@ -663,14 +682,14 @@ export default function Dashboard() {
                   placeholder="Search by remark..." 
                   value={searchDesc}
                   onChange={(e) => setSearchDesc(e.target.value)}
-                  className="w-full bg-prasatek-light px-3 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none mb-3"
+                  className="w-full bg-prasatek-light dark:bg-slate-800 px-3 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none mb-3"
                 />
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <select 
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full bg-prasatek-light px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none appearance-none cursor-pointer"
+                    className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none cursor-pointer"
                   >
                     <option value="">All Types</option>
                     <option value="add">Income Only</option>
@@ -679,7 +698,7 @@ export default function Dashboard() {
                   <select 
                     value={filterAccount}
                     onChange={(e) => setFilterAccount(e.target.value)}
-                    className="w-full bg-prasatek-light px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none appearance-none cursor-pointer"
+                    className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none cursor-pointer"
                   >
                     <option value="">All Accounts</option>
                     {accounts.map(acc => (
@@ -692,50 +711,50 @@ export default function Dashboard() {
                     type="date" 
                     value={filterDate}
                     onChange={(e) => setFilterDate(e.target.value)}
-                    className="w-full bg-prasatek-light px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none" 
+                    className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none" 
                     title="Filter by Day"
                   />
                   <input 
                     type="week" 
                     value={filterWeek}
                     onChange={(e) => setFilterWeek(e.target.value)}
-                    className="w-full bg-prasatek-light px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none" 
+                    className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none" 
                     title="Filter by Week"
                   />
                   <input 
                     type="month" 
                     value={filterMonth}
                     onChange={(e) => setFilterMonth(e.target.value)}
-                    className="w-full bg-prasatek-light px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 outline-none" 
+                    className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none" 
                     title="Filter by Month"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4 border-t border-gray-100 pt-3 shrink-0">
-                  <div className="bg-green-50/50 p-2 rounded-xl border border-green-100/50 text-center">
-                    <p className="text-[9px] font-bold text-green-600 uppercase tracking-wider">Filtered Income</p>
-                    <p className="text-sm font-extrabold text-green-700">{formatMoney(filteredIncome)}</p>
+                <div className="grid grid-cols-2 gap-3 mb-4 border-t border-gray-100 dark:border-slate-800 pt-3 shrink-0">
+                  <div className="bg-green-50/50 dark:bg-green-950/10 p-2 rounded-xl border border-green-100/50 dark:border-green-900/30 text-center">
+                    <p className="text-[9px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Filtered Income</p>
+                    <p className="text-sm font-extrabold text-green-700 dark:text-green-300">{formatMoney(filteredIncome)}</p>
                   </div>
-                  <div className="bg-red-50/50 p-2 rounded-xl border border-red-100/50 text-center">
-                    <p className="text-[9px] font-bold text-red-600 uppercase tracking-wider">Filtered Expense</p>
-                    <p className="text-sm font-extrabold text-red-700">{formatMoney(filteredExpense)}</p>
+                  <div className="bg-red-50/50 dark:bg-red-950/10 p-2 rounded-xl border border-red-100/50 dark:border-red-900/30 text-center">
+                    <p className="text-[9px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Filtered Expense</p>
+                    <p className="text-sm font-extrabold text-red-700 dark:text-red-300">{formatMoney(filteredExpense)}</p>
                   </div>
                 </div>
 
                 <ul className="flex-1 overflow-y-auto hide-scroll space-y-3 pr-1 pb-4">
                   {filteredTx.length === 0 ? (
-                    <li className="text-center text-gray-400 font-bold py-6 text-xs uppercase tracking-widest">No Records Found</li>
+                    <li className="text-center text-gray-400 dark:text-slate-500 font-bold py-6 text-xs uppercase tracking-widest">No Records Found</li>
                   ) : (
                     filteredTx.map(tx => {
                       const accRef = accounts.find(a => a._id === tx.accountId);
                       const isInc = tx.type === 'add';
                       return (
-                        <li key={tx._id} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <li key={tx._id} className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-50 dark:border-slate-800">
                           <div className="flex-1 overflow-hidden pr-3">
-                            <p className="font-bold text-slate-800 text-sm truncate">{tx.description}</p>
-                            <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wide">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded-full text-slate-500 mr-1">{tx.category}</span>
-                              <span className="text-slate-400">{accRef ? accRef.name : 'Unknown Account'}</span> • {tx.date}
+                            <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{tx.description}</p>
+                            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 mt-1 uppercase tracking-wide">
+                              <span className="bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400 mr-1">{tx.category}</span>
+                              <span className="text-slate-400 dark:text-slate-500">{accRef ? accRef.name : 'Unknown Account'}</span> • {tx.date}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
@@ -744,7 +763,7 @@ export default function Dashboard() {
                             </span>
                             <button 
                               onClick={() => handleDeleteTx(tx._id)}
-                              className="text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-2 rounded-lg transition cursor-pointer"
+                              className="text-gray-300 hover:text-red-500 bg-gray-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/20 p-2 rounded-lg transition cursor-pointer"
                               title="Delete Transaction"
                             >
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -763,7 +782,7 @@ export default function Dashboard() {
         </div>
 
         {/* Footer */}
-        <div className="mt-auto border-t border-gray-200 bg-white py-6">
+        <div className="mt-auto border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6">
           <div className="flex justify-center gap-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-2">
             <Link to="/privacy" className="hover:text-prasatek-primary transition">Privacy</Link>
             <span>|</span>
@@ -851,6 +870,56 @@ export default function Dashboard() {
                   Confirm
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global Alert Modal */}
+        {showAlert && (
+          <div className="absolute inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+            <div className="bg-white rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-slate-100">
+              <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${
+                alertType === 'error' 
+                  ? 'bg-red-100 text-red-600' 
+                  : alertType === 'success' 
+                    ? 'bg-green-100 text-green-600' 
+                    : 'bg-blue-100 text-blue-600'
+              }`}>
+                {alertType === 'error' ? (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                  </svg>
+                ) : alertType === 'success' ? (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                ) : (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                )}
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900 mb-1">{alertTitle}</h3>
+              <p className="text-xs text-gray-500 mb-6 font-bold leading-relaxed whitespace-pre-line">{alertMsg}</p>
+              
+              {alertMsg.includes('Pro plan users') && (
+                <div className="mb-6">
+                  <Link 
+                    to="/upgrade"
+                    onClick={() => setShowAlert(false)}
+                    className="inline-flex items-center gap-1 text-xs font-extrabold text-prasatek-primary hover:underline"
+                  >
+                    Go to Plan Upgrade Page &rarr;
+                  </Link>
+                </div>
+              )}
+
+              <button 
+                onClick={() => setShowAlert(false)}
+                className="w-full bg-prasatek-dark hover:bg-slate-700 text-white font-extrabold py-3.5 rounded-xl transition shadow-md cursor-pointer text-xs"
+              >
+                Okay
+              </button>
             </div>
           </div>
         )}

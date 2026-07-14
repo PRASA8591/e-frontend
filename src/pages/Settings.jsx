@@ -50,7 +50,7 @@ export default function Settings() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Photo size must be smaller than 2MB.");
+      setProfileError("Photo size must be smaller than 2MB.");
       return;
     }
 
@@ -315,28 +315,28 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Theme Selector (Light/Dark Toggle) */}
-              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/40">
+              {/* Theme Selector (Light/Dark/Forest/Nordic/Cyberpunk Select) */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/40 gap-4">
                 <div>
                   <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Application Mode Theme</p>
-                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Toggle between standard light display and sleek modern dark layouts.</p>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Select a visual theme theme style matching your preferences.</p>
                 </div>
-                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in shrink-0">
-                  <input 
-                    type="checkbox" 
-                    id="themeToggle" 
-                    checked={theme === 'dark'}
+                <div className="shrink-0 w-full sm:w-48">
+                  <select 
+                    value={theme}
                     onChange={(e) => {
-                      const selectedTheme = e.target.checked ? 'dark' : 'light';
+                      const selectedTheme = e.target.value;
                       setTheme(selectedTheme);
                       handleSettingsSubmit(selectedTheme, currency, notificationsEnabled);
                     }}
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 z-10"
-                  />
-                  <label 
-                    htmlFor="themeToggle" 
-                    className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-all duration-300 ${theme === 'dark' ? 'bg-prasatek-primary' : 'bg-gray-300 dark:bg-gray-700'}`}
-                  ></label>
+                    className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-lg px-3 py-2 border border-gray-200 dark:border-slate-700 outline-none cursor-pointer"
+                  >
+                    <option value="light">☀️ Light Theme (Default)</option>
+                    <option value="dark">🌑 Dark Slate Theme</option>
+                    <option value="forest">🌲 Forest Emerald (Green)</option>
+                    <option value="nordic">🌊 Nordic Frost (Blue)</option>
+                    <option value="cyberpunk">🔮 Cyberpunk Neon (Violet)</option>
+                  </select>
                 </div>
               </div>
 

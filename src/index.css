@@ -1,9 +1,154 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --theme-bg: #f8fafc;
+  --theme-card: #ffffff;
+  --theme-border: #f1f5f9;
+  --theme-text: #0f172a;
+  
+  --prasatek-primary: #0b8c5a;
+  --prasatek-light: #eef2f6;
+  --prasatek-dark: #1e293b;
+}
+
+.dark {
+  --theme-bg: #090d16;
+  --theme-card: #0f172a;
+  --theme-border: #1e293b;
+  --theme-text: #f8fafc;
+  
+  --prasatek-primary: #0b8c5a;
+  --prasatek-light: #1e293b;
+  --prasatek-dark: #0f172a;
+}
+
+.theme-forest {
+  --theme-bg: #022c22;
+  --theme-card: #064e3b;
+  --theme-border: #0f766e;
+  --theme-text: #f0fdf4;
+  
+  --prasatek-primary: #10b981;
+  --prasatek-light: #064e3b;
+  --prasatek-dark: #022c22;
+}
+
+.theme-nordic {
+  --theme-bg: #020617;
+  --theme-card: #0f172a;
+  --theme-border: #1e293b;
+  --theme-text: #f0f9ff;
+  
+  --prasatek-primary: #0284c7;
+  --prasatek-light: #0f172a;
+  --prasatek-dark: #020617;
+}
+
+.theme-cyberpunk {
+  --theme-bg: #0f051d;
+  --theme-card: #230b35;
+  --theme-border: #581c87;
+  --theme-text: #faf5ff;
+  
+  --prasatek-primary: #a855f7;
+  --prasatek-light: #230b35;
+  --prasatek-dark: #0f051d;
+}
+
 @theme {
-  --color-prasatek-primary: #0b8c5a;
-  --color-prasatek-light: #eef2f6;
-  --color-prasatek-dark: #1e293b;
+  --color-prasatek-bg: var(--theme-bg);
+  --color-prasatek-card: var(--theme-card);
+  --color-prasatek-border: var(--theme-border);
+  --color-prasatek-text: var(--theme-text);
+
+  --color-prasatek-primary: var(--prasatek-primary);
+  --color-prasatek-light: var(--prasatek-light);
+  --color-prasatek-dark: var(--prasatek-dark);
+}
+
+body {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+/* Dynamic theme propagation overrides */
+.bg-white {
+  background-color: var(--theme-card) !important;
+}
+
+.border-gray-50, .border-gray-100, .border-gray-200, .border-slate-100 {
+  border-color: var(--theme-border) !important;
+}
+
+.text-slate-800, .text-slate-900 {
+  color: var(--theme-text) !important;
+}
+
+.bg-slate-50 {
+  background-color: var(--theme-bg) !important;
+}
+
+.bg-prasatek-light {
+  background-color: var(--prasatek-light) !important;
+}
+
+.bg-prasatek-dark {
+  background-color: var(--prasatek-dark) !important;
+}
+
+/* Specificity overrides for custom themes in dark mode */
+.theme-forest.dark .bg-slate-50,
+.theme-forest.dark .dark\:bg-slate-950,
+.theme-nordic.dark .bg-slate-50,
+.theme-nordic.dark .dark\:bg-slate-950,
+.theme-cyberpunk.dark .bg-slate-50,
+.theme-cyberpunk.dark .dark\:bg-slate-950 {
+  background-color: var(--theme-bg) !important;
+}
+
+.theme-forest.dark .bg-white,
+.theme-forest.dark .dark\:bg-slate-900,
+.theme-forest.dark .bg-prasatek-light,
+.theme-forest.dark .dark\:bg-slate-800,
+.theme-nordic.dark .bg-white,
+.theme-nordic.dark .dark\:bg-slate-900,
+.theme-nordic.dark .bg-prasatek-light,
+.theme-nordic.dark .dark\:bg-slate-800,
+.theme-cyberpunk.dark .bg-white,
+.theme-cyberpunk.dark .dark\:bg-slate-900,
+.theme-cyberpunk.dark .bg-prasatek-light,
+.theme-cyberpunk.dark .dark\:bg-slate-800 {
+  background-color: var(--theme-card) !important;
+}
+
+.theme-forest.dark .border-gray-50,
+.theme-forest.dark .border-gray-100,
+.theme-forest.dark .border-gray-200,
+.theme-forest.dark .border-slate-100,
+.theme-forest.dark .dark\:border-slate-800,
+.theme-nordic.dark .border-gray-50,
+.theme-nordic.dark .border-gray-100,
+.theme-nordic.dark .border-gray-200,
+.theme-nordic.dark .border-slate-100,
+.theme-nordic.dark .dark\:border-slate-800,
+.theme-cyberpunk.dark .border-gray-50,
+.theme-cyberpunk.dark .border-gray-100,
+.theme-cyberpunk.dark .border-gray-200,
+.theme-cyberpunk.dark .border-slate-100,
+.theme-cyberpunk.dark .dark\:border-slate-800 {
+  border-color: var(--theme-border) !important;
+}
+
+.theme-forest.dark .text-slate-800,
+.theme-forest.dark .dark\:text-slate-200,
+.theme-nordic.dark .text-slate-800,
+.theme-nordic.dark .dark\:text-slate-200,
+.theme-cyberpunk.dark .text-slate-800,
+.theme-cyberpunk.dark .dark\:text-slate-200 {
+  color: var(--theme-text) !important;
 }
 
 /* Custom CSS overrides */

@@ -42,6 +42,32 @@ export default function Admin() {
   const [overwriteOnImport, setOverwriteOnImport] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [pendingImportData, setPendingImportData] = useState(null);
+  
+  // Announcements
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMsg, setAnnouncementMsg] = useState('');
+  const [announcementType, setAnnouncementType] = useState('info');
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
+  const [announcementSuccess, setAnnouncementSuccess] = useState('');
+  const [announcementError, setAnnouncementError] = useState('');
+
+  // Custom Popup Alert/Confirm States
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMsg, setConfirmMsg] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMsg, setAlertMsg] = useState('');
+  const [alertType, setAlertType] = useState('info'); // info, error, success
+
+  const triggerAlert = (title, message, type = 'info') => {
+    setAlertTitle(title);
+    setAlertMsg(message);
+    setAlertType(type);
+    setShowAlert(true);
+  };
 
   // Organizations list
   const [orgs, setOrgs] = useState([
@@ -103,22 +129,26 @@ export default function Admin() {
         setSelectedContact(prev => ({ ...prev, status: 'read' }));
       }
     } catch (error) {
-      alert('Failed to mark message as read.');
+      triggerAlert('System Alert', 'Failed to mark message as read.', 'error');
     }
   };
 
   const handleDeleteContact = async (id) => {
-    if (confirm('Are you sure you want to permanently delete this contact message?')) {
+    setConfirmTitle('Delete Contact Inquiry');
+    setConfirmMsg('Are you sure you want to permanently delete this contact message?');
+    setConfirmAction(() => async () => {
       try {
-         await axios.delete(`/api/contacts/${id}`);
-         setContacts(prev => prev.filter(c => c._id !== id));
-         if (selectedContact && selectedContact._id === id) {
-           setSelectedContact(null);
-         }
+        await axios.delete(`/api/contacts/${id}`);
+        setContacts(prev => prev.filter(c => c._id !== id));
+        if (selectedContact && selectedContact._id === id) {
+          setSelectedContact(null);
+        }
       } catch (error) {
-         alert('Failed to delete message.');
+        triggerAlert('System Alert', 'Failed to delete message.', 'error');
       }
-    }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
   };
 
   useEffect(() => {
@@ -156,7 +186,7 @@ export default function Admin() {
       setSelectedUser(prev => ({ ...prev, role: newRole }));
       fetchUsers();
     } catch (error) {
-      alert('Failed to update role.');
+      triggerAlert('System Alert', 'Failed to update role.', 'error');
     }
   };
 
@@ -168,7 +198,7 @@ export default function Admin() {
       setSelectedUser(prev => ({ ...prev, status: newStatus }));
       fetchUsers();
     } catch (error) {
-      alert('Failed to update status.');
+      triggerAlert('System Alert', 'Failed to update status.', 'error');
     }
   };
 
@@ -180,7 +210,7 @@ export default function Admin() {
       setSelectedUser(prev => ({ ...prev, org: newOrg }));
       fetchUsers();
     } catch (error) {
-      alert('Failed to update branch.');
+      triggerAlert('System Alert', 'Failed to update branch.', 'error');
     }
   };
 
@@ -192,7 +222,7 @@ export default function Admin() {
       setSelectedUser(prev => ({ ...prev, plan: res.data.plan, planExpiryDate: res.data.planExpiryDate, planStatus: res.data.planStatus, planType: res.data.planType }));
       fetchUsers();
     } catch (error) {
-      alert('Failed to update plan.');
+      triggerAlert('System Alert', 'Failed to update plan.', 'error');
     }
   };
 
@@ -204,7 +234,30 @@ export default function Admin() {
       setSelectedUser(prev => ({ ...prev, plan: res.data.plan, planExpiryDate: res.data.planExpiryDate, planStatus: res.data.planStatus, planType: res.data.planType }));
       fetchUsers();
     } catch (error) {
-      alert('Failed to update billing cycle.');
+      triggerAlert('System Alert', 'Failed to update billing cycle.', 'error');
+    }
+  };
+
+  const handleSendAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!announcementTitle || !announcementMsg) return;
+    setSendingAnnouncement(true);
+    setAnnouncementSuccess('');
+    setAnnouncementError('');
+    try {
+      await axios.post('/api/admin/announcements', {
+        title: announcementTitle,
+        message: announcementMsg,
+        type: announcementType
+      });
+      setAnnouncementSuccess('Global announcement broadcasted successfully to all users.');
+      setAnnouncementTitle('');
+      setAnnouncementMsg('');
+      setAnnouncementType('info');
+    } catch (error) {
+      setAnnouncementError(error.response?.data?.message || 'Failed to send global announcement.');
+    } finally {
+      setSendingAnnouncement(false);
     }
   };
 
@@ -231,49 +284,61 @@ export default function Admin() {
       fetchUsers();
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving user.');
+      triggerAlert('System Alert', error.response?.data?.message || 'Error saving user.', 'error');
     } finally {
       setSavingUser(false);
     }
   };
 
   const handleDeleteUser = async (userId) => {
-    if (confirm("Are you sure you want to permanently delete this user? This will also cascade delete all their accounts and transactions from the system!")) {
+    setConfirmTitle('Delete User');
+    setConfirmMsg('Are you sure you want to permanently delete this user? This will also cascade delete all their accounts and transactions from the system!');
+    setConfirmAction(() => async () => {
       try {
         await axios.delete(`/api/admin/users/${userId}`);
         setSelectedUser(null);
         fetchUsers();
         fetchStats();
       } catch (error) {
-        alert(error.response?.data?.message || 'Failed to delete user.');
+        triggerAlert('System Alert', error.response?.data?.message || 'Failed to delete user.', 'error');
       }
-    }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
   };
 
   const handleDeleteUserAccount = async (accId) => {
-    if (confirm("Are you sure you want to permanently delete this user's account?")) {
+    setConfirmTitle('Delete User Account');
+    setConfirmMsg("Are you sure you want to permanently delete this user's account?");
+    setConfirmAction(() => async () => {
       try {
         await axios.delete(`/api/admin/accounts/${accId}`);
         if (selectedUser) {
           loadUserDetails(selectedUser);
         }
       } catch (error) {
-        alert('Failed to delete account.');
+        triggerAlert('System Alert', 'Failed to delete account.', 'error');
       }
-    }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
   };
 
   const handleDeleteUserTransaction = async (txId) => {
-    if (confirm("Are you sure you want to permanently delete this user's transaction?")) {
+    setConfirmTitle('Delete User Transaction');
+    setConfirmMsg("Are you sure you want to permanently delete this user's transaction?");
+    setConfirmAction(() => async () => {
       try {
         await axios.delete(`/api/admin/transactions/${txId}`);
         if (selectedUser) {
           loadUserDetails(selectedUser);
         }
       } catch (error) {
-        alert('Failed to delete transaction.');
+        triggerAlert('System Alert', 'Failed to delete transaction.', 'error');
       }
-    }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
   };
 
   const handleFileChange = (e) => {
@@ -285,12 +350,12 @@ export default function Admin() {
       try {
         const json = JSON.parse(event.target.result);
         if (!json.accounts && !json.transactions) {
-          return alert('Invalid backup file. Must contain accounts or transactions data.');
+          return triggerAlert('Import Notice', 'Invalid backup file. Must contain accounts or transactions data.', 'info');
         }
         setPendingImportData(json);
         setShowImportModal(true);
       } catch (err) {
-        alert('Invalid JSON file format.');
+        triggerAlert('Import Error', 'Invalid JSON file format.', 'error');
       }
     };
     reader.readAsText(file);
@@ -305,14 +370,14 @@ export default function Admin() {
         ...pendingImportData,
         overwrite: overwriteOnImport
       });
-      alert('Data imported successfully!');
+      triggerAlert('Success', 'Data imported successfully!', 'success');
       setShowImportModal(false);
       setPendingImportData(null);
       setOverwriteOnImport(false);
       loadUserDetails(selectedUser);
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error importing data.');
+      triggerAlert('Import Error', error.response?.data?.message || 'Error importing data.', 'error');
     } finally {
       setImportingData(false);
     }
@@ -320,7 +385,7 @@ export default function Admin() {
 
   const handleExportAudit = () => {
     if (!selectedUser || userTransactions.length === 0) {
-      return alert('No transactions available to export for this user.');
+      return triggerAlert('Audit Notice', 'No transactions available to export for this user.', 'info');
     }
     let csvContent = 'Date,Type,Category,Description,Amount (RS)\n';
     userTransactions.forEach(tx => {
@@ -465,33 +530,123 @@ export default function Admin() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-4">Recent System Logins</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
-                <thead className="text-xs text-gray-400 uppercase bg-gray-50 font-bold">
-                  <tr>
-                    <th className="px-4 py-3 rounded-l-lg">User</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Role</th>
-                    <th className="px-4 py-3 rounded-r-lg">Last Login</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.slice(0, 5).map(u => (
-                    <tr key={u._id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-bold text-slate-800">{u.name || 'Unnamed'}</td>
-                      <td className="px-4 py-3">{u.email}</td>
-                      <td className={`px-4 py-3 font-bold uppercase text-[10px] ${u.role === 'admin' ? 'text-prasatek-primary' : 'text-slate-600'}`}>
-                        {u.role}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
-                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Unknown'}
-                      </td>
+          {/* Advanced SaaS Performance Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Free Plans</p>
+              <h4 className="text-lg font-extrabold text-slate-600">{stats.freeUsers || 0}</h4>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Pro Plans</p>
+              <h4 className="text-lg font-extrabold text-green-600">{stats.proUsers || 0}</h4>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Enterprise Plans</p>
+              <h4 className="text-lg font-extrabold text-purple-600">{stats.enterpriseUsers || 0}</h4>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Ledgers Count</p>
+              <h4 className="text-lg font-extrabold text-blue-600">{stats.totalAccounts || 0}</h4>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tx Logs Vol</p>
+              <h4 className="text-lg font-extrabold text-slate-700">{stats.totalTransactions || 0}</h4>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Recent Logins */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:col-span-7">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-4">Recent System Logins</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-600">
+                  <thead className="text-xs text-gray-400 uppercase bg-gray-50 font-bold">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-lg">User</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3 rounded-r-lg">Last Login</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {users.slice(0, 5).map(u => (
+                      <tr key={u._id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 font-bold text-slate-800">{u.name || 'Unnamed'}</td>
+                        <td className="px-4 py-3">{u.email}</td>
+                        <td className={`px-4 py-3 font-bold uppercase text-[10px] ${u.role === 'admin' ? 'text-prasatek-primary' : 'text-slate-600'}`}>
+                          {u.role}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Unknown'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Send Global Announcement */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:col-span-5 flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1">Global Notification Board</h3>
+                <p className="text-[10px] font-bold text-gray-400 mb-4 uppercase">Broadcast notice alerts to all registered user inbox logs</p>
+                
+                {announcementSuccess && (
+                  <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-xl text-xs font-bold mb-4">
+                    {announcementSuccess}
+                  </div>
+                )}
+                {announcementError && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-xs font-bold mb-4">
+                    {announcementError}
+                  </div>
+                )}
+                
+                <form onSubmit={handleSendAnnouncement} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Notice Title</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Server Maintenance Notice"
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      required
+                      className="w-full bg-prasatek-light text-slate-800 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none focus:ring-1 focus:ring-prasatek-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Alert Category</label>
+                    <select 
+                      value={announcementType}
+                      onChange={(e) => setAnnouncementType(e.target.value)}
+                      className="w-full bg-prasatek-light text-slate-800 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none cursor-pointer"
+                    >
+                      <option value="info">General Info Alert</option>
+                      <option value="expiry">Urgent Security Notice</option>
+                      <option value="feature">New Premium Feature</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Notice Message Body</label>
+                    <textarea 
+                      placeholder="Type details to appear in all user notification alerts..."
+                      value={announcementMsg}
+                      onChange={(e) => setAnnouncementMsg(e.target.value)}
+                      required
+                      rows="3"
+                      className="w-full bg-prasatek-light text-slate-800 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none focus:ring-1 focus:ring-prasatek-primary resize-none"
+                    ></textarea>
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={sendingAnnouncement}
+                    className="w-full bg-prasatek-dark hover:bg-slate-700 text-white text-xs font-extrabold py-3.5 rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {sendingAnnouncement ? 'Broadcasting Notice...' : 'Send Global Notice'}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </main>
@@ -804,7 +959,7 @@ export default function Admin() {
               <p className="text-sm font-medium text-gray-500 mt-1">Manage sub-tenants and regional organizations.</p>
             </div>
             <button 
-              onClick={() => alert("Manual branch registry is restricted by the license node.")}
+              onClick={() => triggerAlert("License Warning", "Manual branch registry is restricted by the license node.", "info")}
               className="bg-prasatek-primary hover:bg-[#09734a] text-white px-4 py-2 rounded-xl shadow-sm font-bold flex items-center gap-2 transition cursor-pointer"
             >
               + Register Branch
@@ -1202,6 +1357,72 @@ export default function Admin() {
                 {importingData ? 'Importing...' : 'Start Import'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Confirm Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-extrabold text-slate-900 mb-1">{confirmTitle}</h3>
+            <p className="text-xs text-gray-500 mb-6 font-medium leading-relaxed">{confirmMsg}</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowConfirm(false)}
+                className="w-1/2 bg-[#e2e8f0] hover:bg-gray-300 text-slate-700 font-bold py-2.5 rounded-xl transition cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmAction}
+                className="w-1/2 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition shadow-md cursor-pointer text-xs"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Alert Modal */}
+      {showAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-slate-100">
+            <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${
+              alertType === 'error' 
+                ? 'bg-red-100 text-red-600' 
+                : alertType === 'success' 
+                  ? 'bg-green-100 text-green-600' 
+                  : 'bg-blue-100 text-blue-600'
+            }`}>
+              {alertType === 'error' ? (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              ) : alertType === 'success' ? (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              ) : (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              )}
+            </div>
+            <h3 className="text-lg font-extrabold text-slate-900 mb-1">{alertTitle}</h3>
+            <p className="text-xs text-gray-500 mb-6 font-bold leading-relaxed whitespace-pre-line">{alertMsg}</p>
+            <button 
+              onClick={() => setShowAlert(false)}
+              className="w-full bg-prasatek-dark hover:bg-slate-700 text-white font-extrabold py-3 rounded-xl transition shadow-md cursor-pointer text-xs"
+            >
+              Okay
+            </button>
           </div>
         </div>
       )}
