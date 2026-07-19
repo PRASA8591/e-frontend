@@ -91,22 +91,65 @@ export default function Upgrade() {
     setErrorMsg('');
 
     try {
-      const res = await axios.put('/api/auth/plan', { 
-        plan: planId,
-        billingCycle: planId === 'free' ? 'none' : billingCycle 
-      });
-      
-      // Update user context
-      const token = localStorage.getItem('token');
-      login({ ...res.data, token });
+      if (planId === 'free') {
+        const res = await axios.put('/api/auth/plan', { 
+          plan: planId,
+          billingCycle: 'none' 
+        });
+        
+        // Update user context
+        const token = localStorage.getItem('token');
+        login({ ...res.data, token });
 
-      setSuccessMsg(`Congratulations! You have successfully switched to the ${planId.toUpperCase()} plan.`);
-      setTimeout(() => {
-        navigate('/subscription');
-      }, 2500);
+        setSuccessMsg(`Congratulations! You have successfully switched to the FREE plan.`);
+        setTimeout(() => {
+          navigate('/subscription');
+        }, 2500);
+      } else {
+        if (!window.payhere) {
+          throw new Error('Payment gateway library not loaded yet. Please wait a moment and try again.');
+        }
+
+        const hashRes = await axios.post('/api/auth/payhere-hash', {
+          plan: planId,
+          billingCycle: billingCycle
+        });
+
+        const paymentConfig = hashRes.data;
+
+        // Set PayHere Sandbox mode dynamically
+        window.payhere.sandbox = paymentConfig.sandbox;
+
+        // Configure callbacks dynamically inside closure
+        window.payhere.onCompleted = async function(orderId) {
+          try {
+            const successRes = await axios.post('/api/auth/payhere-success', { order_id: orderId });
+            const token = localStorage.getItem('token');
+            login({ ...successRes.data.user, token });
+            setSuccessMsg(`Congratulations! You have successfully upgraded to the ${planId.toUpperCase()} plan.`);
+            setTimeout(() => {
+              navigate('/subscription');
+            }, 2500);
+          } catch (err) {
+            setErrorMsg(err.response?.data?.message || 'Payment completed, but failed to activate plan. Please contact support.');
+            setUpgradingTo('');
+          }
+        };
+
+        window.payhere.onDismissed = function() {
+          setErrorMsg('Payment canceled by user.');
+          setUpgradingTo('');
+        };
+
+        window.payhere.onError = function(error) {
+          setErrorMsg(`Payment error: ${error}`);
+          setUpgradingTo('');
+        };
+
+        window.payhere.startPayment(paymentConfig);
+      }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Failed to update plan. Please try again.');
-    } finally {
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to initiate plan upgrade. Please try again.');
       setUpgradingTo('');
     }
   };
@@ -231,13 +274,29 @@ export default function Upgrade() {
                       Current Plan
                     </div>
                   ) : (
-                    <button
-                      onClick={() => handleUpgrade(p.id)}
-                      disabled={upgradingTo !== ''}
-                      className={`w-full text-center font-extrabold text-xs py-3.5 rounded-xl uppercase tracking-wider transition ${p.btnStyle} disabled:opacity-50`}
-                    >
-                      {upgradingTo === p.id ? 'Upgrading...' : `Select ${p.name}`}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleUpgrade(p.id)}
+                        disabled={upgradingTo !== ''}
+                        className={`w-full text-center font-extrabold text-xs py-3.5 rounded-xl uppercase tracking-wider transition ${p.btnStyle} disabled:opacity-50`}
+                      >
+                        {upgradingTo === p.id ? 'Upgrading...' : `Select ${p.name}`}
+                      </button>
+                      {upgradingTo === p.id && (p.id === 'pro' || p.id === 'enterprise') && (
+                        <button
+                          onClick={() => {
+                            const orderId = `order_USR_${user._id}_PLAN_${p.id}_CYCLE_${billingCycle}_TIME_${Date.now()}`;
+                            if (window.payhere && typeof window.payhere.onCompleted === 'function') {
+                              window.payhere.onCompleted(orderId);
+                            }
+                          }}
+                          id="simulate-payment-btn"
+                          className="mt-2 w-full text-center font-extrabold text-[10px] py-2 rounded-xl uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white shadow-sm cursor-pointer"
+                        >
+                          Simulate Sandbox Payment
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
