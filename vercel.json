@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://backend-wkpm.onrender.com/api/:path*"
+      "destination": "https://backend-xolk.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

@@ -5,8 +5,8 @@ import axios from 'axios'
 import './index.css'
 import App from './App.jsx'
 
-const RENDER_BACKEND_URL = 'https://backend-wkpm.onrender.com';
-let apiBaseUrl = import.meta.env.VITE_API_URL || '';
+const RENDER_BACKEND_URL = 'https://backend-xolk.onrender.com';
+let apiBaseUrl = import.meta.env.VITE_API_URL || RENDER_BACKEND_URL;
 
 // In production (Vercel / custom domain), automatically route API requests to Render backend
 if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
