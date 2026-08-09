@@ -877,14 +877,17 @@ export default function Admin() {
               </div>
 
               {/* Selected User Detail Inspector */}
-              <div className="lg:col-span-5 bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+              <div className="lg:col-span-5 bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4 max-h-[750px] overflow-y-auto hide-scroll">
                 {selectedUser ? (
-                  <div className="space-y-4 animate-fade-in">
+                  <div className="space-y-4 animate-fade-in text-xs font-semibold">
                     <div className="flex justify-between items-start border-b border-slate-900 pb-3">
                       <div>
-                        <span className="text-[10px] font-extrabold uppercase text-prasatek-primary tracking-wider">User Inspector</span>
+                        <span className="text-[10px] font-extrabold uppercase text-prasatek-primary tracking-wider">User Profile Inspector</span>
                         <h3 className="text-lg font-extrabold text-white mt-0.5">{selectedUser.name}</h3>
                         <p className="text-xs text-slate-400 font-semibold">{selectedUser.email}</p>
+                        {selectedUser.mobile && (
+                          <p className="text-[11px] text-prasatek-primary font-bold mt-0.5">Mobile: {selectedUser.mobile}</p>
+                        )}
                       </div>
                       <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${
                         selectedUser.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'
@@ -893,9 +896,33 @@ export default function Admin() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-xs font-semibold">
+                    {/* Account Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">Mobile Number</span>
+                        <span className="text-white font-extrabold">{selectedUser.mobile || 'Not set'}</span>
+                      </div>
+
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">Auth Provider</span>
+                        <span className="text-purple-400 font-extrabold uppercase">{selectedUser.authProvider || 'manual'}</span>
+                      </div>
+
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">User Role</span>
+                        <span className="text-white font-extrabold uppercase">{selectedUser.role || 'user'}</span>
+                      </div>
+
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">Plan Tier</span>
+                        <span className="text-green-400 font-extrabold uppercase">{selectedUser.plan || 'free'}</span>
+                      </div>
+                    </div>
+
+                    {/* Toggles Grid */}
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="bg-slate-900 p-3 rounded-xl border border-slate-800/80">
-                        <span className="text-slate-500 text-[10px] font-extrabold uppercase block">Verification State</span>
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">Verification State</span>
                         <div className="flex items-center justify-between mt-1">
                           <span className={selectedUser.isVerified ? 'text-green-400 font-extrabold' : 'text-amber-400 font-extrabold'}>
                             {selectedUser.isVerified ? 'Verified' : 'Unverified'}
@@ -910,7 +937,7 @@ export default function Admin() {
                       </div>
 
                       <div className="bg-slate-900 p-3 rounded-xl border border-slate-800/80">
-                        <span className="text-slate-500 text-[10px] font-extrabold uppercase block">Account Status</span>
+                        <span className="text-slate-500 text-[9px] font-extrabold uppercase block">Account Status</span>
                         <div className="flex items-center justify-between mt-1">
                           <span className={selectedUser.status === 'suspended' ? 'text-red-400 font-extrabold' : 'text-green-400 font-extrabold'}>
                             {selectedUser.status}
@@ -925,23 +952,60 @@ export default function Admin() {
                       </div>
                     </div>
 
-                    {/* Financial Accounts Summary */}
-                    <div className="space-y-2 pt-2 border-t border-slate-900">
+                    {/* Financial Accounts List */}
+                    <div className="space-y-2 pt-3 border-t border-slate-900">
                       <div className="flex justify-between items-center">
                         <h4 className="text-xs font-extrabold text-white">Financial Accounts ({userAccounts.length})</h4>
-                        <span className="text-[10px] text-slate-400">{userTransactions.length} Transactions</span>
+                        <span className="text-[10px] text-slate-400">{userTransactions.length} Total Logs</span>
                       </div>
 
                       {userFinancialsLoading ? (
-                        <div className="py-6 text-center text-xs text-slate-500">Loading financials...</div>
+                        <div className="py-4 text-center text-xs text-slate-500">Loading accounts...</div>
                       ) : userAccounts.length === 0 ? (
-                        <div className="py-6 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Accounts Logged</div>
+                        <div className="py-4 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Accounts Logged</div>
                       ) : (
-                        <div className="space-y-2 max-h-[220px] overflow-y-auto hide-scroll pr-1">
+                        <div className="space-y-1.5 max-h-[160px] overflow-y-auto hide-scroll">
                           {userAccounts.map(acc => (
-                            <div key={acc._id} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                              <span className="font-extrabold text-white">{acc.name}</span>
+                            <div key={acc._id} className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                              <div>
+                                <span className="font-extrabold text-white">{acc.name}</span>
+                                {acc.type && <span className="text-[9px] uppercase font-bold text-slate-500 ml-2">({acc.type})</span>}
+                              </div>
                               <span className="font-extrabold text-prasatek-primary">{acc.initialBalance} LKR</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Transaction History Log */}
+                    <div className="space-y-2 pt-3 border-t border-slate-900">
+                      <h4 className="text-xs font-extrabold text-white flex justify-between items-center">
+                        <span>Transaction History ({userTransactions.length})</span>
+                      </h4>
+
+                      {userFinancialsLoading ? (
+                        <div className="py-4 text-center text-xs text-slate-500">Loading history...</div>
+                      ) : userTransactions.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Transaction History Logged</div>
+                      ) : (
+                        <div className="space-y-1.5 max-h-[220px] overflow-y-auto hide-scroll pr-1">
+                          {userTransactions.map(tx => (
+                            <div key={tx._id} className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-[11px]">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-extrabold uppercase text-[9px] px-1.5 py-0.5 rounded ${
+                                    tx.type === 'income' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                  }`}>
+                                    {tx.type}
+                                  </span>
+                                  <span className="font-bold text-white">{tx.category || 'General'}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{tx.description || 'No notes'} • {new Date(tx.date || tx.createdAt || Date.now()).toLocaleDateString()}</p>
+                              </div>
+                              <span className={`font-extrabold text-xs ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                                {tx.type === 'income' ? '+' : '-'}{tx.amount} LKR
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -951,7 +1015,7 @@ export default function Admin() {
                 ) : (
                   <div className="py-20 text-center space-y-3">
                     <Users className="w-12 h-12 text-slate-700 mx-auto" />
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Select a user to inspect profile & financials</p>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Select a user to inspect profile, accounts & history</p>
                   </div>
                 )}
               </div>
