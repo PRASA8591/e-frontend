@@ -284,23 +284,21 @@ export default function Admin() {
     reader.onload = async (event) => {
       try {
         const jsonContent = JSON.parse(event.target.result);
-        if (!jsonContent || typeof jsonContent !== 'object') {
-          triggerAlert('Import Error', 'Invalid JSON file format.', 'error');
+        if (!jsonContent) {
+          triggerAlert('Import Error', 'Invalid or empty JSON file format.', 'error');
           return;
         }
 
         setImportingBackup(true);
-        const res = await axios.post(`/api/admin/users/${selectedUser._id}/import-backup`, {
-          accounts: jsonContent.accounts || jsonContent.Account || [],
-          transactions: jsonContent.transactions || jsonContent.history || jsonContent.Transaction || []
-        });
+        const res = await axios.post(`/api/admin/users/${selectedUser._id}/import-backup`, jsonContent);
 
         triggerAlert('Import Successful', res.data.message, 'success');
         handleSelectUser(selectedUser);
         fetchData();
       } catch (parseErr) {
-        console.error('Import parse error:', parseErr);
-        triggerAlert('Import Error', 'Failed to parse JSON file or backend import error.', 'error');
+        console.error('Import error:', parseErr);
+        const errorMsg = parseErr.response?.data?.message || parseErr.message || 'Failed to import backup file into user account.';
+        triggerAlert('Import Error', errorMsg, 'error');
       } finally {
         setImportingBackup(false);
         e.target.value = '';
