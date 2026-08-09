@@ -274,6 +274,41 @@ export default function Admin() {
     }
   };
 
+  // Import Backup JSON File for Selected User
+  const [importingBackup, setImportingBackup] = useState(false);
+  const handleImportBackupFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedUser) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const jsonContent = JSON.parse(event.target.result);
+        if (!jsonContent || typeof jsonContent !== 'object') {
+          triggerAlert('Import Error', 'Invalid JSON file format.', 'error');
+          return;
+        }
+
+        setImportingBackup(true);
+        const res = await axios.post(`/api/admin/users/${selectedUser._id}/import-backup`, {
+          accounts: jsonContent.accounts || jsonContent.Account || [],
+          transactions: jsonContent.transactions || jsonContent.history || jsonContent.Transaction || []
+        });
+
+        triggerAlert('Import Successful', res.data.message, 'success');
+        handleSelectUser(selectedUser);
+        fetchData();
+      } catch (parseErr) {
+        console.error('Import parse error:', parseErr);
+        triggerAlert('Import Error', 'Failed to parse JSON file or backend import error.', 'error');
+      } finally {
+        setImportingBackup(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Toggle Email Verification Status
   const handleToggleVerify = async (targetUser) => {
     try {
@@ -889,11 +924,27 @@ export default function Admin() {
                           <p className="text-[11px] text-prasatek-primary font-bold mt-0.5">Mobile: {selectedUser.mobile}</p>
                         )}
                       </div>
-                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${
-                        selectedUser.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'
-                      }`}>
-                        {selectedUser.status}
-                      </span>
+
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${
+                          selectedUser.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'
+                        }`}>
+                          {selectedUser.status}
+                        </span>
+
+                        {/* Import JSON Backup Button */}
+                        <label className="bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl border border-green-500/30 transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{importingBackup ? 'Importing...' : 'Import JSON Backup'}</span>
+                          <input
+                            type="file"
+                            accept=".json"
+                            onChange={handleImportBackupFile}
+                            disabled={importingBackup}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
 
                     {/* Account Metadata Grid */}
