@@ -826,7 +826,7 @@ export default function Admin() {
                             className="hidden" 
                           />
                         </label>
-                        {selectedUser.email.toLowerCase() !== 'admin@prasatek.site' && (
+                        {!['admin@prasatek.site', 'admin@prasatek.lk'].includes(selectedUser.email.toLowerCase()) && (
                           <button 
                             onClick={() => handleDeleteUser(selectedUser._id)}
                             className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1.5 rounded-lg transition shadow-sm cursor-pointer"

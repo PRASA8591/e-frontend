@@ -42,8 +42,8 @@ export default function Subscription() {
           title: 'Enterprise Plan',
           maxAccounts: 'Unlimited',
           history: 'Unlimited History',
-          price: isYearly ? '4,999 LKR/yr' : '499 LKR/mo',
-          features: ['Unlimited Accounts', 'Excel & CSV Export', 'Custom Categories', 'Budget Monitoring', 'Advanced Analytics', 'Financial Goals'],
+          price: isYearly ? '4,900 LKR/yr' : '499 LKR/mo',
+          features: ['Edit Past Transactions (Category, Remark, Value)', 'Unlimited Accounts', 'Excel & CSV Export', 'All Visual Theme Packs Unlocked', 'Custom Categories', 'Budget Monitoring', 'Advanced Analytics Breakdown', 'Financial Goals Milestones', 'JSON Backup Export'],
           accentColor: 'text-purple-600 dark:text-purple-400',
           bgBadge: 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40',
           maxAcctVal: Infinity
@@ -53,8 +53,8 @@ export default function Subscription() {
           title: 'Pro Plan',
           maxAccounts: '3 Accounts',
           history: 'Unlimited History',
-          price: isYearly ? '1,999 LKR/yr' : '199 LKR/mo',
-          features: ['Up to 3 Accounts', 'Excel & CSV Export', 'Custom Categories', 'Budget Monitoring'],
+          price: isYearly ? '1,900 LKR/yr' : '199 LKR/mo',
+          features: ['Up to 3 Accounts', 'Excel & CSV Export', 'Forest Emerald Theme Unlocked', 'Custom Categories', 'Budget Monitoring', 'Expenses Category Charts'],
           accentColor: 'text-green-600 dark:text-green-400',
           bgBadge: 'bg-green-100 dark:bg-green-950/40 text-prasatek-primary dark:text-green-400 border border-green-200 dark:border-green-800/40',
           maxAcctVal: 3

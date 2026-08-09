@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { 
@@ -43,6 +43,8 @@ export default function Settings() {
   const [settingsSuccess, setSettingsSuccess] = useState('');
   const [settingsError, setSettingsError] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [modalRequiredPlan, setModalRequiredPlan] = useState('');
 
   // Handle Photo Change Uploader
   const handlePhotoChange = (e) => {
@@ -326,6 +328,17 @@ export default function Settings() {
                     value={theme}
                     onChange={(e) => {
                       const selectedTheme = e.target.value;
+                      const plan = user?.plan || 'free';
+                      if (selectedTheme === 'forest' && plan === 'free') {
+                        setModalRequiredPlan('pro');
+                        setShowUpgradeModal(true);
+                        return;
+                      }
+                      if (['nordic', 'cyberpunk'].includes(selectedTheme) && plan !== 'enterprise') {
+                        setModalRequiredPlan('enterprise');
+                        setShowUpgradeModal(true);
+                        return;
+                      }
                       setTheme(selectedTheme);
                       handleSettingsSubmit(selectedTheme, currency, notificationsEnabled);
                     }}
@@ -333,9 +346,9 @@ export default function Settings() {
                   >
                     <option value="light">☀️ Light Theme (Default)</option>
                     <option value="dark">🌑 Dark Slate Theme</option>
-                    <option value="forest">🌲 Forest Emerald (Green)</option>
-                    <option value="nordic">🌊 Nordic Frost (Blue)</option>
-                    <option value="cyberpunk">🔮 Cyberpunk Neon (Violet)</option>
+                    <option value="forest">{user?.plan === 'free' ? '🔒 🌲 Forest Emerald (Pro/Ent)' : '🌲 Forest Emerald (Green)'}</option>
+                    <option value="nordic">{user?.plan !== 'enterprise' ? '🔒 🌊 Nordic Frost (Ent)' : '🌊 Nordic Frost (Blue)'}</option>
+                    <option value="cyberpunk">{user?.plan !== 'enterprise' ? '🔒 🔮 Cyberpunk Neon (Ent)' : '🔮 Cyberpunk Neon (Violet)'}</option>
                   </select>
                 </div>
               </div>
@@ -431,6 +444,44 @@ export default function Settings() {
         </aside>
 
       </main>
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-gray-100 dark:border-slate-800">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-950/20 mb-4">
+              <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-1">Upgrade Your Plan</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5 font-bold leading-normal">
+              This visual theme package is locked. You need a <span className="text-prasatek-primary dark:text-green-400 uppercase font-extrabold">{modalRequiredPlan} plan</span> or higher to unlock this customization theme style.
+            </p>
+            
+            <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-normal mb-6 space-y-2 border border-slate-100 dark:border-slate-800">
+              <p className="uppercase text-[9px] text-slate-400">Unlock theme steps:</p>
+              <p>1. Navigate to our subscription pricing dashboard.</p>
+              <p>2. Select the plan that fits your visual styling requirements.</p>
+              <p>3. Confirm payment sandbox sequence to enable immediately.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-1/2 bg-[#e2e8f0] hover:bg-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl transition cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <Link 
+                to="/upgrade"
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-1/2 bg-prasatek-primary hover:bg-[#09734a] text-white font-bold py-3 rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer text-xs"
+              >
+                Upgrade Plan
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title as ChartTitle } from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
 import ProfileSidebar from '../components/ProfileSidebar';
 import NotificationDropdown from '../components/NotificationDropdown';
+import VerificationModal from '../components/VerificationModal';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle);
 
 const fxRates = { RS: 1, USD: 0.0033, EUR: 0.0031, GBP: 0.0026, JPY: 0.52, AUD: 0.0050, CAD: 0.0045, CHF: 0.0030, CNY: 0.024, INR: 0.27 };
 const fxSymbols = { RS: 'RS ', USD: '$', EUR: '€', GBP: '£', JPY: '¥', AUD: 'A$', CAD: 'C$', CHF: 'CHF ', CNY: '¥', INR: '₹' };
 
 export default function Dashboard() {
-  const { user, logout, updateBudget } = useAuth();
+  const { user, logout, updateBudget, login } = useAuth();
   
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -26,6 +27,7 @@ export default function Dashboard() {
   // Currency State
   const [activeCurrency, setActiveCurrency] = useState(user?.currency || 'RS');
   const [budgetLimitBase, setBudgetLimitBase] = useState(user?.monthlyBudgetLimit || 50000);
+  const [budgetInputVal, setBudgetInputVal] = useState('');
 
   // Forms State
   const [txAccountId, setTxAccountId] = useState('');
@@ -38,10 +40,26 @@ export default function Dashboard() {
 
   // Account Modal
   const [showAccModal, setShowAccModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [modalRequiredPlan, setModalRequiredPlan] = useState('');
+
+  // Edit Transaction Modal State
+  const [showEditTxModal, setShowEditTxModal] = useState(false);
+  const [editTxId, setEditTxId] = useState('');
+  const [editTxAccountId, setEditTxAccountId] = useState('');
+  const [editTxDate, setEditTxDate] = useState('');
+  const [editTxType, setEditTxType] = useState('add');
+  const [editTxCategory, setEditTxCategory] = useState('Income');
+  const [editTxDescription, setEditTxDescription] = useState('');
+  const [editTxAmount, setEditTxAmount] = useState('');
+  const [submittingEditTx, setSubmittingEditTx] = useState(false);
   const [newAccName, setNewAccName] = useState('');
   const [newAccBalance, setNewAccBalance] = useState('');
   const [submittingAcc, setSubmittingAcc] = useState(false);
+
+  // Advanced Visuals States
+  const [activeChartTab, setActiveChartTab] = useState('balances');
 
   // Filters State
   const [filterType, setFilterType] = useState('');
@@ -79,6 +97,10 @@ export default function Dashboard() {
     }
   }, [user]);
 
+  useEffect(() => {
+    setBudgetInputVal(String(Math.round(budgetLimitBase * fxRates[activeCurrency])));
+  }, [budgetLimitBase, activeCurrency]);
+
   const fetchData = async () => {
     try {
       const [accRes, txRes] = await Promise.all([
@@ -107,11 +129,57 @@ export default function Dashboard() {
     setActiveCurrency(e.target.value);
   };
 
-  const handleBudgetChange = async (e) => {
-    const enteredValue = parseFloat(e.target.value) || 0;
-    const limitInBase = enteredValue / fxRates[activeCurrency];
-    setBudgetLimitBase(limitInBase);
-    await updateBudget(limitInBase);
+  const handleBudgetSave = async () => {
+    const enteredValue = parseFloat(budgetInputVal);
+    if (!isNaN(enteredValue) && enteredValue > 0) {
+      const limitInBase = enteredValue / fxRates[activeCurrency];
+      setBudgetLimitBase(limitInBase);
+      await updateBudget(limitInBase);
+    } else {
+      setBudgetInputVal(String(Math.round(budgetLimitBase * fxRates[activeCurrency])));
+    }
+  };
+
+  const handleExportJson = () => {
+    if (user?.plan !== 'enterprise') {
+      setModalRequiredPlan('enterprise');
+      setShowUpgradeModal(true);
+      return;
+    }
+    if (transactions.length === 0 && accounts.length === 0) {
+      triggerAlert('Export Notice', 'No data available to back up.', 'info');
+      return;
+    }
+    const backupPayload = {
+      exportedAt: new Date().toISOString(),
+      user: {
+        name: user.name,
+        email: user.email,
+        plan: user.plan
+      },
+      accounts: accounts.map(a => ({ name: a.name, initialBalance: a.initialBalance })),
+      transactions: transactions.map(t => {
+        const acc = accounts.find(a => a._id === t.accountId);
+        return {
+          accountName: acc ? acc.name : 'Unknown Account',
+          date: t.date,
+          month: t.month,
+          type: t.type,
+          category: t.category,
+          description: t.description,
+          amount: t.amount
+        };
+      })
+    };
+    
+    const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Prasatek_Backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAddAccountClick = () => {
@@ -125,6 +193,10 @@ export default function Dashboard() {
   // Add account
   const handleAddAccountSubmit = async (e) => {
     e.preventDefault();
+    if (user && !user.isVerified && user.role !== 'admin') {
+      setShowVerifyModal(true);
+      return;
+    }
     if (!newAccName || isNaN(parseFloat(newAccBalance))) return;
     setSubmittingAcc(true);
     try {
@@ -146,6 +218,10 @@ export default function Dashboard() {
   // Add transaction
   const handleAddTxSubmit = async (e) => {
     e.preventDefault();
+    if (user && !user.isVerified && user.role !== 'admin') {
+      setShowVerifyModal(true);
+      return;
+    }
     if (!txAccountId || !txDescription || isNaN(parseFloat(txAmount)) || !txDate) return;
     
     const finalCategory = txCategory === 'Custom' ? customCategoryName : txCategory;
@@ -172,6 +248,47 @@ export default function Dashboard() {
       triggerAlert('Transaction Error', error.response?.data?.message || 'Error saving transaction.', 'error');
     } finally {
       setSubmittingTx(false);
+    }
+  };
+
+  // Open Edit Transaction (Enterprise Feature)
+  const handleOpenEditTx = (tx) => {
+    if (user?.plan !== 'enterprise' && user?.role !== 'admin' && user?.role !== 'manager') {
+      setModalRequiredPlan('enterprise');
+      setShowUpgradeModal(true);
+      return;
+    }
+    setEditTxId(tx._id);
+    setEditTxAccountId(tx.accountId);
+    setEditTxDate(tx.date);
+    setEditTxType(tx.type);
+    setEditTxCategory(tx.category || 'Other');
+    setEditTxDescription(tx.description || '');
+    setEditTxAmount(String(tx.amount));
+    setShowEditTxModal(true);
+  };
+
+  const handleEditTxSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTxAccountId || !editTxDescription || isNaN(parseFloat(editTxAmount)) || !editTxDate) return;
+
+    setSubmittingEditTx(true);
+    try {
+      await axios.put(`/api/transactions/${editTxId}`, {
+        accountId: editTxAccountId,
+        date: editTxDate,
+        type: editTxType,
+        category: editTxCategory,
+        description: editTxDescription,
+        amount: parseFloat(editTxAmount)
+      });
+      setShowEditTxModal(false);
+      fetchData();
+      triggerAlert('Transaction Updated', 'Transaction details successfully updated.', 'success');
+    } catch (error) {
+      triggerAlert('Update Error', error.response?.data?.message || 'Error updating transaction.', 'error');
+    } finally {
+      setSubmittingEditTx(false);
     }
   };
 
@@ -232,7 +349,7 @@ export default function Dashboard() {
         accountBalances[tx.accountId] += tx.amount;
       } else {
         accountBalances[tx.accountId] -= tx.amount;
-        if (tx.date.startsWith(currentMonth)) {
+        if (tx.date.startsWith(currentMonth) && tx.category !== 'Money Transfer To Me') {
           monthlyExpense += tx.amount;
         }
       }
@@ -272,7 +389,7 @@ export default function Dashboard() {
     else filteredExpense += tx.amount;
   });
 
-  // Chart data
+  // Chart data (balances)
   const chartLabels = accounts.map(acc => acc.name);
   const chartData = accounts.map(acc => Math.max(0, accountBalances[acc._id] || 0));
 
@@ -301,6 +418,102 @@ export default function Dashboard() {
           }
         }
       }
+    }
+  };
+
+  // Categories spending sum (Expenses Category chart data)
+  const categoryExpenseSums = {};
+  transactions.forEach(tx => {
+    if (tx.type === 'deduct') {
+      const cat = tx.category || 'Other';
+      categoryExpenseSums[cat] = (categoryExpenseSums[cat] || 0) + tx.amount;
+    }
+  });
+  const catLabels = Object.keys(categoryExpenseSums);
+  const catData = Object.values(categoryExpenseSums);
+
+  const categoriesChartData = {
+    labels: catLabels,
+    datasets: [{
+      data: catData,
+      backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#0b8c5a', '#64748b', '#ec4899', '#14b8a6'],
+      borderWidth: 0
+    }]
+  };
+
+  const categoriesChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          boxWidth: 10,
+          font: { size: 9, weight: 'bold' }
+        }
+      }
+    }
+  };
+
+  // Trends (monthly income vs expense trends chart data for the last 6 months)
+  const last6Months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    last6Months.push(d.toISOString().slice(0, 7)); // YYYY-MM
+  }
+
+  const monthlyIncome = Array(6).fill(0);
+  const monthlyExpenseData = Array(6).fill(0);
+
+  transactions.forEach(tx => {
+    const idx = last6Months.indexOf(tx.month);
+    if (idx !== -1) {
+      if (tx.type === 'add') {
+        monthlyIncome[idx] += tx.amount;
+      } else {
+        monthlyExpenseData[idx] += tx.amount;
+      }
+    }
+  });
+
+  const trendsChartData = {
+    labels: last6Months.map(m => {
+      const [year, month] = m.split('-');
+      const date = new Date(year, parseInt(month) - 1);
+      return date.toLocaleString('default', { month: 'short' });
+    }),
+    datasets: [
+      {
+        label: 'Income',
+        data: monthlyIncome.map(val => val * fxRates[activeCurrency]),
+        backgroundColor: '#0b8c5a',
+        borderRadius: 4
+      },
+      {
+        label: 'Expenses',
+        data: monthlyExpenseData.map(val => val * fxRates[activeCurrency]),
+        backgroundColor: '#ef4444',
+        borderRadius: 4
+      }
+    ]
+  };
+
+  const trendsChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          boxWidth: 10,
+          font: { size: 9, weight: 'bold' }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 8 } } },
+      y: { ticks: { font: { size: 8 } } }
     }
   };
 
@@ -442,6 +655,31 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Verification Alert Banner */}
+        {user && !user.isVerified && user.role !== 'admin' && (
+          <div className="mx-4 md:mx-6 mt-4 p-4 bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm md:text-base">Email Verification Required</h3>
+                <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                  Your email (<strong>{user.email}</strong>) is not verified. Please verify your email before using the system.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowVerifyModal(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow transition cursor-pointer shrink-0"
+            >
+              Click here to verify email
+            </button>
+          </div>
+        )}
+
         {/* Dashboard Grid */}
         <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-full mx-auto flex-1 overflow-y-auto hide-scroll items-start bg-slate-50/50 dark:bg-slate-950/20">
           
@@ -472,21 +710,29 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 mt-1">
                   <span>{formatMoney(monthlyExpense)}</span>
-                  <div className="flex items-center gap-1 bg-prasatek-light px-2 py-1 rounded-lg">
-                    <span className="text-slate-500 uppercase text-[9px]">Target:</span>
-                    <span className="text-slate-700 mr-0.5">{fxSymbols[activeCurrency].trim()}</span>
+                  <div className="flex items-center gap-1 bg-prasatek-light dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    <span className="text-slate-500 uppercase text-[9px] font-bold">Target:</span>
+                    <span className="text-slate-700 dark:text-slate-300 font-extrabold mr-0.5">{fxSymbols[activeCurrency].trim()}</span>
                     <input 
                       type="number" 
-                      value={Math.round(budgetLimitBase * fxRates[activeCurrency])} 
-                      onChange={handleBudgetChange}
+                      value={budgetInputVal} 
+                      onChange={(e) => setBudgetInputVal(e.target.value)}
+                      onBlur={handleBudgetSave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.target.blur();
+                        }
+                      }}
                       min="1" 
-                      step="500" 
-                      className="w-16 bg-transparent text-slate-800 font-extrabold outline-none text-left border-none p-0 focus:ring-0"
+                      step="100" 
+                      className="w-20 bg-transparent text-slate-800 dark:text-slate-100 font-extrabold outline-none text-left border-none p-0 focus:ring-0 text-xs"
                     />
                   </div>
                 </div>
               </div>
             )}
+
+
 
             {/* Add Transaction Form */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800">
@@ -543,6 +789,7 @@ export default function Dashboard() {
                     className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
                   >
                     <option value="Income">Income / Salary</option>
+                    <option value="Money Transfer To Me">Money Transfer To Me</option>
                     <option value="Food & Dining">Food & Dining</option>
                     <option value="Utilities">Utilities</option>
                     <option value="Software/Servers">Software/Servers</option>
@@ -609,7 +856,12 @@ export default function Dashboard() {
             {/* Accounts Panel */}
             <div>
               <div className="flex justify-between items-end mb-3">
-                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">My Accounts</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">My Accounts</h3>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">
+                    ({filterAccount ? accounts.find(a => a._id === filterAccount)?.name || 'Selected' : 'All Accounts'})
+                  </span>
+                </div>
                 <button 
                   onClick={handleAddAccountClick}
                   className="text-xs bg-prasatek-dark text-white px-3 py-1.5 rounded-lg shadow-sm font-extrabold hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
@@ -617,32 +869,64 @@ export default function Dashboard() {
                   + Add Account
                 </button>
               </div>
-              <div className="flex gap-4 overflow-x-auto pb-2 snap-x hide-scroll">
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scroll">
                 {accounts.length === 0 ? (
                   <div className="text-xs text-gray-400 dark:text-slate-500 font-bold italic p-6 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl w-full text-center bg-white dark:bg-slate-900">
                     No accounts found. Click '+ Add Account'.
                   </div>
                 ) : (
-                  accounts.map(acc => {
-                    const currentBal = accountBalances[acc._id] || 0;
-                    return (
-                      <div key={acc._id} className="min-w-[140px] snap-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-2xl shadow-sm relative group shrink-0">
-                        <button 
-                          onClick={() => handleDeleteAccount(acc._id)}
-                          className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/20 p-1.5 rounded-lg transition cursor-pointer"
-                          title="Delete Account"
+                  <>
+                    {/* All Accounts Filter Card */}
+                    <div 
+                      onClick={() => setFilterAccount('')}
+                      className={`min-w-[130px] snap-center p-3.5 rounded-2xl shadow-sm cursor-pointer transition-all border shrink-0 flex flex-col justify-between ${
+                        filterAccount === '' 
+                          ? 'bg-prasatek-primary text-white border-prasatek-primary shadow-md ring-2 ring-prasatek-primary/30' 
+                          : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-gray-100 dark:border-slate-800 hover:border-prasatek-primary/40'
+                      }`}
+                    >
+                      <p className={`text-[10px] font-extrabold uppercase tracking-wider ${filterAccount === '' ? 'text-green-100' : 'text-gray-400'}`}>All Accounts</p>
+                      <p className="text-sm font-extrabold mt-1 truncate">Overview</p>
+                    </div>
+
+                    {accounts.map(acc => {
+                      const currentBal = accountBalances[acc._id] || 0;
+                      const isSelected = filterAccount === acc._id;
+                      return (
+                        <div 
+                          key={acc._id} 
+                          onClick={() => setFilterAccount(isSelected ? '' : acc._id)}
+                          className={`min-w-[140px] snap-center p-3.5 rounded-2xl shadow-sm relative group shrink-0 cursor-pointer transition-all border ${
+                            isSelected 
+                              ? 'bg-green-50/40 dark:bg-green-950/20 border-prasatek-primary ring-2 ring-prasatek-primary/40 shadow-md' 
+                              : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 hover:border-prasatek-primary/40'
+                          }`}
                         >
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                        <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider truncate pr-6">{acc.name}</p>
-                        <p className={`text-xl font-extrabold mt-1 truncate ${currentBal < 0 ? 'text-red-500' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {formatMoney(currentBal)}
-                        </p>
-                      </div>
-                    );
-                  })
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAccount(acc._id);
+                            }}
+                            className="absolute top-2.5 right-2.5 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/20 p-1.5 rounded-lg transition cursor-pointer"
+                            title="Delete Account"
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                          <p className="text-[10px] font-extrabold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate pr-6">{acc.name}</p>
+                          <p className={`text-lg font-extrabold mt-1 truncate ${currentBal < 0 ? 'text-red-500' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {formatMoney(currentBal)}
+                          </p>
+                          {isSelected && (
+                            <span className="inline-block text-[8px] font-black uppercase text-prasatek-primary dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded mt-1">
+                              Active Filter
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </div>
             </div>
@@ -650,14 +934,63 @@ export default function Dashboard() {
             {/* Charts & History */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start w-full">
               
-              {/* Doughnut Chart */}
+              {/* Premium Analytics Charts */}
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col w-full h-[350px]">
-                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide w-full text-left mb-4">Account Balances</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Analysis</h3>
+                  <div className="flex gap-1 bg-gray-50 dark:bg-slate-800 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setActiveChartTab('balances')}
+                      className={`text-[9px] font-extrabold px-2 py-1 rounded-lg transition cursor-pointer ${activeChartTab === 'balances' ? 'bg-prasatek-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Balances
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (user?.plan === 'free') {
+                          setModalRequiredPlan('pro');
+                          setShowUpgradeModal(true);
+                        } else {
+                          setActiveChartTab('categories');
+                        }
+                      }}
+                      className={`text-[9px] font-extrabold px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-0.5 ${activeChartTab === 'categories' ? 'bg-prasatek-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {user?.plan === 'free' && '🔒 '}Categories
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (user?.plan !== 'enterprise') {
+                          setModalRequiredPlan('enterprise');
+                          setShowUpgradeModal(true);
+                        } else {
+                          setActiveChartTab('trends');
+                        }
+                      }}
+                      className={`text-[9px] font-extrabold px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-0.5 ${activeChartTab === 'trends' ? 'bg-prasatek-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {user?.plan !== 'enterprise' && '🔒 '}Trends
+                    </button>
+                  </div>
+                </div>
+
                 <div className="relative flex-1 w-full flex items-center justify-center">
-                  {showChart ? (
-                    <Doughnut data={doughnutData} options={doughnutOptions} />
-                  ) : (
-                    <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase">No Data Available</p>
+                  {activeChartTab === 'balances' && (
+                    showChart ? (
+                      <Doughnut data={doughnutData} options={doughnutOptions} />
+                    ) : (
+                      <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase">No Data Available</p>
+                    )
+                  )}
+                  {activeChartTab === 'categories' && (
+                    catData.length > 0 && !catData.every(val => val === 0) ? (
+                      <Doughnut data={categoriesChartData} options={categoriesChartOptions} />
+                    ) : (
+                      <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase">No Expense Data</p>
+                    )
+                  )}
+                  {activeChartTab === 'trends' && (
+                    <Bar data={trendsChartData} options={trendsChartOptions} />
                   )}
                 </div>
               </div>
@@ -666,15 +999,34 @@ export default function Dashboard() {
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col h-[500px] lg:h-[600px] w-full">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">History</h3>
-                  <button 
-                    onClick={handleExportCsv}
-                    className="bg-prasatek-primary hover:bg-[#09734a] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                    </svg>
-                    Excel / CSV
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleExportCsv}
+                      className="bg-prasatek-primary hover:bg-[#09734a] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer shrink-0"
+                      title="Export filtered transactions to CSV"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                      </svg>
+                      Excel / CSV
+                    </button>
+                    <button 
+                      onClick={handleExportJson}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer shrink-0"
+                      title="Export raw data backup to JSON (Enterprise Feature)"
+                    >
+                      {user?.plan !== 'enterprise' ? (
+                        <span>🔒 Backup JSON</span>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+                          </svg>
+                          Backup JSON
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 
                 <input 
@@ -731,13 +1083,17 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-4 border-t border-gray-100 dark:border-slate-800 pt-3 shrink-0">
-                  <div className="bg-green-50/50 dark:bg-green-950/10 p-2 rounded-xl border border-green-100/50 dark:border-green-900/30 text-center">
-                    <p className="text-[9px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Filtered Income</p>
-                    <p className="text-sm font-extrabold text-green-700 dark:text-green-300">{formatMoney(filteredIncome)}</p>
+                  <div className="bg-green-50/50 dark:bg-green-950/10 p-2.5 rounded-xl border border-green-100/50 dark:border-green-900/30 text-center">
+                    <p className="text-[9px] font-extrabold text-green-600 dark:text-green-400 uppercase tracking-wider truncate">
+                      {filterAccount ? `${accounts.find(a => a._id === filterAccount)?.name || 'Account'} Income` : 'All Accounts Income'}
+                    </p>
+                    <p className="text-base font-extrabold text-green-700 dark:text-green-300 mt-0.5">{formatMoney(filteredIncome)}</p>
                   </div>
-                  <div className="bg-red-50/50 dark:bg-red-950/10 p-2 rounded-xl border border-red-100/50 dark:border-red-900/30 text-center">
-                    <p className="text-[9px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Filtered Expense</p>
-                    <p className="text-sm font-extrabold text-red-700 dark:text-red-300">{formatMoney(filteredExpense)}</p>
+                  <div className="bg-red-50/50 dark:bg-red-950/10 p-2.5 rounded-xl border border-red-100/50 dark:border-red-900/30 text-center">
+                    <p className="text-[9px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider truncate">
+                      {filterAccount ? `${accounts.find(a => a._id === filterAccount)?.name || 'Account'} Expense` : 'All Accounts Expense'}
+                    </p>
+                    <p className="text-base font-extrabold text-red-700 dark:text-red-300 mt-0.5">{formatMoney(filteredExpense)}</p>
                   </div>
                 </div>
 
@@ -761,6 +1117,15 @@ export default function Dashboard() {
                             <span className={`font-extrabold text-sm whitespace-nowrap ${isInc ? 'text-prasatek-primary' : 'text-red-500'}`}>
                               {isInc ? '+' : '-'} {formatMoney(tx.amount)}
                             </span>
+                            <button 
+                              onClick={() => handleOpenEditTx(tx)}
+                              className="text-gray-400 hover:text-prasatek-primary bg-gray-50 dark:bg-slate-800 hover:bg-green-50 dark:hover:bg-green-950/20 p-2 rounded-lg transition cursor-pointer"
+                              title="Edit Transaction (Enterprise Feature)"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                              </svg>
+                            </button>
                             <button 
                               onClick={() => handleDeleteTx(tx._id)}
                               className="text-gray-300 hover:text-red-500 bg-gray-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/20 p-2 rounded-lg transition cursor-pointer"
@@ -792,7 +1157,7 @@ export default function Dashboard() {
           </div>
           <div className="text-[9px] font-bold text-gray-300 uppercase tracking-widest text-center mt-1">
             <p>A PRODUCT BY PRASATEK SYSTEM SOLUTIONS</p>
-            <p className="mt-0.5">www.prasatek.site | 0719323239</p>
+            <p className="mt-0.5">www.prasatek.lk | info@prasatek.lk | 0719323239</p>
           </div>
         </div>
 
@@ -934,7 +1299,12 @@ export default function Dashboard() {
               </div>
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-1">Upgrade Your Plan</h3>
               <p className="text-xs text-gray-500 dark:text-slate-400 mb-5 font-bold leading-normal">
-                You are currently using the <span className="text-prasatek-primary dark:text-green-400 uppercase font-extrabold">Free Plan</span>, which limits your account allocation to exactly 1 account.
+                {modalRequiredPlan === 'enterprise' 
+                  ? 'This advanced feature requires the Enterprise Plan. Upgrade to unlock financial goals milestones, monthly income/expense trends, JSON data backup, and all visual themes.'
+                  : modalRequiredPlan === 'pro'
+                    ? 'This premium feature requires the Pro Plan or higher. Upgrade to unlock expenses category charts, custom category entries, CSV/Excel data export, and forest themes.'
+                    : 'You are currently using the Free Plan, which limits your account allocation to exactly 1 account. Please upgrade to Pro or Enterprise to add more accounts.'
+                }
               </p>
               
               <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-normal mb-6 space-y-2 border border-slate-100 dark:border-slate-800">
@@ -959,6 +1329,129 @@ export default function Dashboard() {
                   Upgrade Plan
                 </Link>
               </div>
+            </div>
+          </div>
+        )}
+
+        <VerificationModal 
+          isOpen={showVerifyModal} 
+          onClose={() => setShowVerifyModal(false)} 
+          email={user?.email} 
+          onSuccess={() => setShowVerifyModal(false)} 
+        />
+
+        {/* Edit Transaction Modal */}
+        {showEditTxModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 text-slate-800 dark:text-slate-100">
+              <div className="flex justify-between items-center pb-4 mb-4 border-b border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 px-2.5 py-1 rounded-md">Enterprise Feature</span>
+                  <h3 className="text-lg font-extrabold">Edit Transaction</h3>
+                </div>
+                <button 
+                  onClick={() => setShowEditTxModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 transition font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleEditTxSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Account</label>
+                  <select
+                    value={editTxAccountId}
+                    onChange={(e) => setEditTxAccountId(e.target.value)}
+                    className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none cursor-pointer"
+                    required
+                  >
+                    {accounts.map(acc => (
+                      <option key={acc._id} value={acc._id}>{acc.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Date</label>
+                    <input 
+                      type="date" 
+                      value={editTxDate}
+                      onChange={(e) => setEditTxDate(e.target.value)}
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-3 py-3 border-none outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Type</label>
+                    <select
+                      value={editTxType}
+                      onChange={(e) => setEditTxType(e.target.value)}
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-3 py-3 border-none outline-none cursor-pointer"
+                      required
+                    >
+                      <option value="add">Income (+)</option>
+                      <option value="deduct">Expense (-)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Category</label>
+                    <input 
+                      type="text" 
+                      value={editTxCategory}
+                      onChange={(e) => setEditTxCategory(e.target.value)}
+                      placeholder="Category"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Amount ({activeCurrency})</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={editTxAmount}
+                      onChange={(e) => setEditTxAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Remark / Description</label>
+                  <input 
+                    type="text" 
+                    value={editTxDescription}
+                    onChange={(e) => setEditTxDescription(e.target.value)}
+                    placeholder="Enter remark"
+                    className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setShowEditTxModal(false)}
+                    className="w-1/2 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 font-bold py-3 rounded-xl transition text-xs cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={submittingEditTx}
+                    className="w-1/2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition text-xs shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingEditTx ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import Subscription from './pages/Subscription';
 import Upgrade from './pages/Upgrade';
 import Usage from './pages/Usage';
+import VerifyEmail from './pages/VerifyEmail';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -58,6 +59,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<Auth />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/contact" element={<Contact />} />

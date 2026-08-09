@@ -59,7 +59,11 @@ export default function Auth() {
       const result = await login(email, password);
       setSubmitting(false);
       if (!result.success) {
-        setError(result.message);
+        if (result.requiresVerification) {
+          navigate('/verify-email', { state: { email: result.email || email, message: result.message } });
+        } else {
+          setError(result.message);
+        }
       }
     } else {
       if (!name || !mobile) {
@@ -70,7 +74,11 @@ export default function Auth() {
       const result = await register(name, email, password, mobile);
       setSubmitting(false);
       if (result.success) {
-        setSuccess('Registration successful! Redirecting...');
+        if (result.requiresVerification) {
+          navigate('/verify-email', { state: { email: result.email || email, message: result.message } });
+        } else {
+          setSuccess('Registration successful! Redirecting...');
+        }
       } else {
         setError(result.message);
       }

@@ -85,6 +85,14 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true };
     } catch (error) {
+      if (error.response?.data?.requiresVerification) {
+        return {
+          success: false,
+          requiresVerification: true,
+          email: error.response.data.email,
+          message: error.response.data.message
+        };
+      }
       return {
         success: false,
         message: error.response?.data?.message || 'Login failed'
@@ -107,10 +115,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
   const register = async (name, email, password, mobile) => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password, mobile });
+      if (res.data.requiresVerification) {
+        return {
+          success: true,
+          requiresVerification: true,
+          email: res.data.email,
+          message: res.data.message
+        };
+      }
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
       setUser(userData);
@@ -119,6 +134,33 @@ export const AuthProvider = ({ children }) => {
       return {
         success: false,
         message: error.response?.data?.message || 'Registration failed'
+      };
+    }
+  };
+
+  const verifyEmail = async (email, code) => {
+    try {
+      const res = await axios.post('/api/auth/verify', { email, code });
+      const { token: userToken, message, ...userData } = res.data;
+      if (userToken) setToken(userToken);
+      if (userData && Object.keys(userData).length > 0) setUser(userData);
+      return { success: true, message: message || 'Email verified successfully!' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Verification failed'
+      };
+    }
+  };
+
+  const resendVerification = async (email) => {
+    try {
+      const res = await axios.post('/api/auth/resend-verification', { email });
+      return { success: true, message: res.data.message || 'Verification code resent!' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to resend code'
       };
     }
   };
@@ -171,7 +213,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, logout, updateMobile, updateBudget, updateUserOrg }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, verifyEmail, resendVerification, logout, updateMobile, updateBudget, updateUserOrg }}>
       {children}
     </AuthContext.Provider>
   );
