@@ -31,6 +31,8 @@ export default function Auth() {
       setSubmitting(false);
       if (!result.success) {
         setError(result.message);
+      } else if (result.requiresVerification) {
+        navigate('/verify-email', { state: { email: result.email, message: result.message } });
       }
     },
     onError: () => {

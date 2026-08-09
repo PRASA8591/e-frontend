@@ -103,6 +103,14 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (credential, accessToken) => {
     try {
       const res = await axios.post('/api/auth/google', { credential, accessToken });
+      if (res.data.requiresVerification) {
+        return {
+          success: true,
+          requiresVerification: true,
+          email: res.data.email,
+          message: res.data.message
+        };
+      }
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
       setUser(userData);
