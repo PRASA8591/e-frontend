@@ -31,14 +31,14 @@ import {
   TrendingUp,
   LogOut,
   Zap,
-  DollarSign
+  Calendar
 } from 'lucide-react';
 
 export default function Admin() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Navigation Tabs: 'overview', 'users', 'audit', 'announcements', 'messages', 'settings'
+  // Navigation Tabs: 'overview', 'users', 'audit', 'announcements', 'messages'
   const [activeTab, setActiveTab] = useState('overview');
   
   // System Telemetry & Stats
@@ -91,27 +91,26 @@ export default function Admin() {
   const [addIsVerified, setAddIsVerified] = useState(true);
   const [savingUser, setSavingUser] = useState(false);
 
-  // Backup Import States
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [pendingImportData, setPendingImportData] = useState(null);
-  const [overwriteOnImport, setOverwriteOnImport] = useState(false);
-  const [importingData, setImportingData] = useState(false);
-
   // Contact Support Messages
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
   const [contactsLoading, setContactsLoading] = useState(false);
-  const [contactsSearchQuery, setContactsSearchQuery] = useState('');
 
-  // Announcements & System Maintenance Settings
+  // Announcements & Scheduling
+  const [announcementsList, setAnnouncementsList] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMsg, setAnnouncementMsg] = useState('');
   const [announcementType, setAnnouncementType] = useState('info');
+  const [scheduledStart, setScheduledStart] = useState('');
+  const [scheduledEnd, setScheduledEnd] = useState('');
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
 
+  // System Operational Settings (Maintenance Mode & Global Banner)
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerType, setBannerType] = useState('info');
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
   // Custom Popup Alert/Confirm States
@@ -172,6 +171,19 @@ export default function Admin() {
     }
   };
 
+  // Fetch Announcements List
+  const fetchAnnouncements = async () => {
+    setAnnouncementsLoading(true);
+    try {
+      const res = await axios.get('/api/admin/announcements');
+      setAnnouncementsList(res.data);
+    } catch (err) {
+      console.error('Error fetching announcements:', err);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
   // Fetch System Settings
   const fetchSettings = async () => {
     try {
@@ -180,6 +192,7 @@ export default function Admin() {
       if (res.data.globalBanner) {
         setBannerEnabled(res.data.globalBanner.enabled);
         setBannerMessage(res.data.globalBanner.message);
+        setBannerType(res.data.globalBanner.type || 'info');
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -211,6 +224,7 @@ export default function Admin() {
     if (activeTab === 'audit') fetchAuditLogs();
     if (activeTab === 'messages') fetchContacts();
     if (activeTab === 'overview') fetchHealth();
+    if (activeTab === 'announcements') fetchAnnouncements();
   }, [activeTab]);
 
   // Handle User Search & Filtering
@@ -394,7 +408,7 @@ export default function Admin() {
     setShowConfirm(true);
   };
 
-  // Broadcast System Announcement
+  // Broadcast & Schedule System Announcement
   const handleSendAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementTitle || !announcementMsg) return;
@@ -404,11 +418,16 @@ export default function Admin() {
       const res = await axios.post('/api/admin/announcements', {
         title: announcementTitle,
         message: announcementMsg,
-        type: announcementType
+        type: announcementType,
+        scheduledStart: scheduledStart ? new Date(scheduledStart) : new Date(),
+        scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null
       });
       setAnnouncementTitle('');
       setAnnouncementMsg('');
-      triggerAlert('Announcement Sent', res.data.message, 'success');
+      setScheduledStart('');
+      setScheduledEnd('');
+      fetchAnnouncements();
+      triggerAlert('Announcement Broadcasted', res.data.message, 'success');
     } catch (err) {
       triggerAlert('Broadcast Error', 'Failed to send announcement.', 'error');
     } finally {
@@ -416,7 +435,24 @@ export default function Admin() {
     }
   };
 
-  // Update System Settings (Maintenance Mode / Banner)
+  // Delete Announcement
+  const handleDeleteAnnouncement = (announcement) => {
+    setConfirmTitle('Delete Announcement');
+    setConfirmMsg(`Are you sure you want to delete announcement "${announcement.title}"? This will also remove the notification from all user feeds.`);
+    setConfirmAction(() => async () => {
+      try {
+        await axios.delete(`/api/admin/announcements/${announcement._id}`);
+        fetchAnnouncements();
+        triggerAlert('Deleted', 'Announcement deleted successfully.', 'success');
+      } catch (err) {
+        triggerAlert('Error', 'Failed to delete announcement.', 'error');
+      }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
+  };
+
+  // Update System Operational Settings (Maintenance Mode / Global Banner)
   const handleUpdateSystemSettings = async () => {
     setUpdatingSettings(true);
     try {
@@ -425,10 +461,10 @@ export default function Admin() {
         globalBanner: {
           enabled: bannerEnabled,
           message: bannerMessage,
-          type: 'warning'
+          type: bannerType
         }
       });
-      triggerAlert('Settings Saved', 'System operational parameters updated.', 'success');
+      triggerAlert('Settings Saved', 'System operational parameters updated successfully.', 'success');
     } catch (err) {
       triggerAlert('Error', 'Failed to update system settings.', 'error');
     } finally {
@@ -563,7 +599,7 @@ export default function Admin() {
             }`}
           >
             <Bell className="w-4 h-4" />
-            Broadcast & Settings
+            Broadcast & Operational Settings
           </button>
 
           <button
@@ -765,7 +801,6 @@ export default function Admin() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Plan Badge */}
                           <select
                             value={u.plan || 'free'}
                             onClick={(e) => e.stopPropagation()}
@@ -777,7 +812,6 @@ export default function Admin() {
                             <option value="enterprise">Enterprise</option>
                           </select>
 
-                          {/* Role Select */}
                           <select
                             value={u.role || 'user'}
                             onClick={(e) => e.stopPropagation()}
@@ -789,7 +823,6 @@ export default function Admin() {
                             <option value="admin">Admin</option>
                           </select>
 
-                          {/* Quick Password Reset Button */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -801,7 +834,6 @@ export default function Admin() {
                             <Key className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Delete Button */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -958,18 +990,24 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ==================== TAB 4: ANNOUNCEMENTS & SETTINGS ==================== */}
+        {/* ==================== TAB 4: ANNOUNCEMENTS & OPERATIONAL SETTINGS ==================== */}
         {activeTab === 'announcements' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
             
-            {/* Global Announcement Broadcaster */}
-            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-slate-900">
-                <Bell className="w-5 h-5 text-prasatek-primary" />
-                <h3 className="text-sm font-extrabold text-white">Broadcast System Announcement</h3>
+            {/* Left Column: Scheduled Announcements Manager */}
+            <div className="lg:col-span-7 bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-900">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-prasatek-primary" />
+                  <h3 className="text-sm font-extrabold text-white">Scheduled Broadcast Announcements</h3>
+                </div>
+                <span className="text-xs text-slate-400 font-bold">{announcementsList.length} Announcements</span>
               </div>
 
-              <form onSubmit={handleSendAnnouncement} className="space-y-4">
+              {/* Create Scheduled Announcement Form */}
+              <form onSubmit={handleSendAnnouncement} className="space-y-4 bg-slate-900 p-4 rounded-xl border border-slate-800/80">
+                <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Create New Announcement</h4>
+                
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Title Line</label>
                   <input
@@ -977,32 +1015,54 @@ export default function Admin() {
                     placeholder="e.g., Scheduled Server Maintenance Notice"
                     value={announcementTitle}
                     onChange={(e) => setAnnouncementTitle(e.target.value)}
-                    className="w-full bg-slate-900 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:border-prasatek-primary"
+                    className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:border-prasatek-primary"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Severity Type</label>
-                  <select
-                    value={announcementType}
-                    onChange={(e) => setAnnouncementType(e.target.value)}
-                    className="w-full bg-slate-900 text-slate-200 text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none cursor-pointer"
-                  >
-                    <option value="info">Info / General Update</option>
-                    <option value="warning">Warning / Alert</option>
-                    <option value="success">Feature Release / Success</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Severity Type</label>
+                    <select
+                      value={announcementType}
+                      onChange={(e) => setAnnouncementType(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-200 text-xs font-bold rounded-xl p-2.5 border border-slate-800 outline-none cursor-pointer"
+                    >
+                      <option value="info">Info</option>
+                      <option value="warning">Warning</option>
+                      <option value="success">Success</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Schedule Start Time</label>
+                    <input
+                      type="datetime-local"
+                      value={scheduledStart}
+                      onChange={(e) => setScheduledStart(e.target.value)}
+                      className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-2 border border-slate-800 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Schedule End Time</label>
+                    <input
+                      type="datetime-local"
+                      value={scheduledEnd}
+                      onChange={(e) => setScheduledEnd(e.target.value)}
+                      className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-2 border border-slate-800 outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Message Content</label>
                   <textarea
-                    rows="4"
-                    placeholder="Enter broadcast content to send to all registered user notification bell feeds..."
+                    rows="3"
+                    placeholder="Enter announcement text to send to all user feeds..."
                     value={announcementMsg}
                     onChange={(e) => setAnnouncementMsg(e.target.value)}
-                    className="w-full bg-slate-900 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:border-prasatek-primary resize-none"
+                    className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:border-prasatek-primary resize-none"
                     required
                   />
                 </div>
@@ -1010,55 +1070,136 @@ export default function Admin() {
                 <button
                   type="submit"
                   disabled={sendingAnnouncement}
-                  className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs py-3.5 rounded-xl transition shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs py-3 rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {sendingAnnouncement ? 'Broadcasting...' : 'Broadcast to All Users'}
+                  {sendingAnnouncement ? 'Broadcasting...' : 'Broadcast Announcement'}
                 </button>
               </form>
+
+              {/* Active & Scheduled Announcements List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Active Broadcast History ({announcementsList.length})</h4>
+                
+                {announcementsLoading ? (
+                  <div className="py-6 text-center text-xs text-slate-500 font-bold">Loading announcements...</div>
+                ) : announcementsList.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Announcements Broadcasted</div>
+                ) : (
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto hide-scroll pr-1">
+                    {announcementsList.map(a => (
+                      <div key={a._id} className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 flex justify-between items-start gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                              a.type === 'warning' ? 'bg-amber-500/20 text-amber-400' :
+                              a.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {a.type}
+                            </span>
+                            <h5 className="font-extrabold text-sm text-white">{a.title}</h5>
+                          </div>
+                          <p className="text-xs text-slate-300 font-medium">{a.message}</p>
+                          <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-1">
+                            <Calendar className="w-3 h-3 text-prasatek-primary" />
+                            <span>Created: {new Date(a.createdAt).toLocaleString()}</span>
+                            {a.scheduledStart && <span>• Start: {new Date(a.scheduledStart).toLocaleDateString()}</span>}
+                            {a.scheduledEnd && <span>• End: {new Date(a.scheduledEnd).toLocaleDateString()}</span>}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteAnnouncement(a)}
+                          className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition cursor-pointer shrink-0"
+                          title="Delete Announcement"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
 
-            {/* System Operational Parameters */}
-            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
+            {/* Right Column: System Operational Parameters & Maintenance Mode */}
+            <div className="lg:col-span-5 bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
               <div className="flex items-center gap-2 pb-3 border-b border-slate-900">
                 <Sliders className="w-5 h-5 text-purple-400" />
                 <h3 className="text-sm font-extrabold text-white">System Operational Settings</h3>
               </div>
 
-              <div className="space-y-4">
-                {/* Maintenance Mode Toggle */}
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 flex justify-between items-center">
-                  <div>
-                    <h4 className="text-xs font-extrabold text-white">Maintenance Mode</h4>
-                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Restrict non-admin access while maintenance is active.</p>
+              <div className="space-y-5">
+                {/* Maintenance Mode Card */}
+                <div className={`p-4 rounded-2xl border transition ${
+                  maintenanceMode ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-900 border-slate-800'
+                }`}>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className={`w-4 h-4 ${maintenanceMode ? 'text-red-400 animate-bounce' : 'text-slate-400'}`} />
+                        <h4 className="text-xs font-extrabold text-white">System Maintenance Mode</h4>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-semibold mt-1">
+                        When enabled, all non-admin users are automatically logged out, and the Auth screen displays a maintenance banner.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={maintenanceMode}
+                        onChange={(e) => setMaintenanceMode(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                    </label>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={maintenanceMode}
-                    onChange={(e) => setMaintenanceMode(e.target.checked)}
-                    className="w-5 h-5 accent-prasatek-primary cursor-pointer"
-                  />
                 </div>
 
-                {/* System Banner Settings */}
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 space-y-3">
+                {/* Global Alert Banner Card */}
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-extrabold text-white">Global Header Alert Banner</h4>
-                    <input
-                      type="checkbox"
-                      checked={bannerEnabled}
-                      onChange={(e) => setBannerEnabled(e.target.checked)}
-                      className="w-5 h-5 accent-prasatek-primary cursor-pointer"
-                    />
+                    <h4 className="text-xs font-extrabold text-white flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-prasatek-primary" />
+                      Global Header Alert Banner
+                    </h4>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={bannerEnabled}
+                        onChange={(e) => setBannerEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-prasatek-primary"></div>
+                    </label>
                   </div>
 
                   {bannerEnabled && (
-                    <input
-                      type="text"
-                      placeholder="Enter global top alert banner text..."
-                      value={bannerMessage}
-                      onChange={(e) => setBannerMessage(e.target.value)}
-                      className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none"
-                    />
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Banner Type</label>
+                        <select
+                          value={bannerType}
+                          onChange={(e) => setBannerType(e.target.value)}
+                          className="w-full bg-slate-950 text-slate-200 text-xs font-bold rounded-xl p-2.5 border border-slate-800 outline-none"
+                        >
+                          <option value="info">Info (Blue)</option>
+                          <option value="warning">Warning (Amber)</option>
+                          <option value="success">Success (Green)</option>
+                          <option value="danger">Danger (Red)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Header Banner Message</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Notice: Server upgrade scheduled for tonight at 11 PM LKR."
+                          value={bannerMessage}
+                          onChange={(e) => setBannerMessage(e.target.value)}
+                          className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
 

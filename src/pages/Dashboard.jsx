@@ -88,6 +88,31 @@ export default function Dashboard() {
     setShowAlert(true);
   };
 
+  const [globalBanner, setGlobalBanner] = useState(null);
+
+  useEffect(() => {
+    const checkSystemStatus = async () => {
+      try {
+        const res = await axios.get('/api/system/status');
+        if (res.data.maintenanceMode && user?.role !== 'admin') {
+          logout();
+          return;
+        }
+        if (res.data.globalBanner && res.data.globalBanner.enabled && res.data.globalBanner.message) {
+          setGlobalBanner(res.data.globalBanner);
+        } else {
+          setGlobalBanner(null);
+        }
+      } catch (err) {
+        console.error('System status error:', err);
+      }
+    };
+
+    checkSystemStatus();
+    const interval = setInterval(checkSystemStatus, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   useEffect(() => {
     if (user?.monthlyBudgetLimit) {
       setBudgetLimitBase(user.monthlyBudgetLimit);
@@ -572,6 +597,27 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex justify-center items-center md:py-6 md:px-4 text-slate-800 dark:text-slate-200 font-sans antialiased transition-colors duration-300">
       <div className="w-full max-w-[1400px] bg-white dark:bg-slate-900 md:shadow-2xl md:rounded-[2rem] overflow-hidden h-screen md:h-[95vh] relative border border-gray-100 dark:border-slate-800 flex flex-col">
         
+        {/* Global Header Alert Banner */}
+        {globalBanner && globalBanner.enabled && globalBanner.message && (
+          <div className={`text-white text-xs font-bold px-4 py-2.5 shadow-md flex items-center justify-between gap-4 animate-fade-in shrink-0 ${
+            globalBanner.type === 'warning' ? 'bg-amber-600' :
+            globalBanner.type === 'danger' ? 'bg-red-600' :
+            globalBanner.type === 'success' ? 'bg-prasatek-primary' :
+            'bg-gradient-to-r from-purple-600 via-prasatek-primary to-blue-600'
+          }`}>
+            <div className="flex items-center gap-2 max-w-5xl mx-auto text-center justify-center flex-1">
+              <span className="bg-white/20 uppercase text-[9px] font-extrabold px-2 py-0.5 rounded-md tracking-wider">Announcement</span>
+              <span>{globalBanner.message}</span>
+            </div>
+            <button 
+              onClick={() => setGlobalBanner(null)}
+              className="text-white/80 hover:text-white font-extrabold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Header bar */}
         <div className="bg-white dark:bg-slate-900 px-6 pt-6 pb-6 shadow-sm border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
