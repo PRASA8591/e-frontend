@@ -42,6 +42,23 @@ export default function Contact() {
   // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState(null);
 
+  // Dynamic System HQ Location States
+  const [dynamicHqAddress, setDynamicHqAddress] = useState('');
+  const [dynamicHqMapUrl, setDynamicHqMapUrl] = useState('');
+
+  useEffect(() => {
+    const fetchSystemLocation = async () => {
+      try {
+        const res = await axios.get('/api/system/status');
+        if (res.data.hqAddress) setDynamicHqAddress(res.data.hqAddress);
+        if (res.data.hqMapUrl) setDynamicHqMapUrl(res.data.hqMapUrl);
+      } catch (err) {
+        console.error('Failed to fetch system location settings:', err);
+      }
+    };
+    fetchSystemLocation();
+  }, []);
+
   const textEN = useMemo(() => ({
     badge: 'Client Services',
     title: 'Contact Our Team',
@@ -580,31 +597,39 @@ export default function Contact() {
               <MapPin className="w-4 h-4 text-prasatek-primary" />
               {t.headquarters}
             </h2>
-            <div className="relative h-28 bg-slate-100 rounded-xl overflow-hidden border border-slate-200/60 flex items-center justify-center">
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#808080_1px,transparent_1px)] bg-[size:10px_10px]"></div>
-              <div className="absolute w-full h-[2px] bg-slate-200/80 top-1/3"></div>
-              <div className="absolute w-full h-[2px] bg-slate-200/80 top-2/3"></div>
-              <div className="absolute h-full w-[2px] bg-slate-200/80 left-1/3"></div>
-              <div className="absolute h-full w-[2px] bg-slate-200/80 left-2/3"></div>
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="w-3 h-3 bg-prasatek-primary rounded-full animate-ping absolute"></div>
-                <MapPin className="w-7 h-7 text-prasatek-primary relative drop-shadow-md animate-bounce" />
-              </div>
-              <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded text-[8px] font-extrabold text-slate-500 border border-slate-100 shadow-sm">
-                Colombo, Sri Lanka
-              </div>
+            
+            <div className="relative h-48 bg-slate-100 rounded-xl overflow-hidden border border-slate-200/60 shadow-inner">
+              {dynamicHqMapUrl ? (
+                <iframe
+                  src={dynamicHqMapUrl.includes('src="') ? (dynamicHqMapUrl.match(/src="([^"]+)"/)?.[1] || dynamicHqMapUrl) : dynamicHqMapUrl}
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  title="Headquarters Google Map"
+                  allowFullScreen=""
+                  referrerPolicy="no-referrer-when-downgrade"
+                ></iframe>
+              ) : (
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.385418197779!2d79.9610!3d6.8440!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2501a3512e02d%3A0x6b4f738e4a9e5251!2sKottawa%2C%20Pannipitiya!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk"
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  title="Default Headquarters Map"
+                ></iframe>
+              )}
             </div>
+
             <div className="flex justify-between items-center gap-3">
               <div className="text-[11px] font-semibold text-slate-500">
                 <p className="font-extrabold text-slate-800">{t.companyName}</p>
-                <p>{t.address}</p>
+                <p>{dynamicHqAddress || t.address}</p>
               </div>
               <a 
-                href="https://maps.google.com/?q=Colombo,Sri+Lanka" 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dynamicHqAddress || 'Kottawa, Sri Lanka')}`}
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-[10px] font-extrabold px-3 py-2 rounded-lg transition text-slate-600 shrink-0 cursor-pointer text-center"
+                className="bg-prasatek-primary hover:bg-[#09734a] text-white text-[10px] font-extrabold px-3 py-2 rounded-lg transition shadow-sm shrink-0 cursor-pointer text-center flex items-center gap-1"
               >
+                <MapPin className="w-3 h-3" />
                 {t.getRoute}
               </a>
             </div>

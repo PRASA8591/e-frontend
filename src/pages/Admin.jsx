@@ -31,7 +31,8 @@ import {
   TrendingUp,
   LogOut,
   Zap,
-  Calendar
+  Calendar,
+  MapPin
 } from 'lucide-react';
 
 export default function Admin() {
@@ -110,11 +111,13 @@ export default function Admin() {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
 
-  // System Operational Settings (Maintenance Mode & Global Banner)
+  // System Operational Settings (Maintenance Mode, Global Banner & HQ Map Location)
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerEnabled, setBannerEnabled] = useState(false);
   const [bannerType, setBannerType] = useState('info');
+  const [hqAddress, setHqAddress] = useState('Kottawa Road, Colombo District, Sri Lanka');
+  const [hqMapUrl, setHqMapUrl] = useState('https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.385418197779!2d79.9610!3d6.8440!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2501a3512e02d%3A0x6b4f738e4a9e5251!2sKottawa%2C%20Pannipitiya!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk');
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
   // Custom Popup Alert/Confirm States
@@ -198,6 +201,8 @@ export default function Admin() {
         setBannerMessage(res.data.globalBanner.message);
         setBannerType(res.data.globalBanner.type || 'info');
       }
+      if (res.data.hqAddress) setHqAddress(res.data.hqAddress);
+      if (res.data.hqMapUrl) setHqMapUrl(res.data.hqMapUrl);
     } catch (err) {
       console.error('Error fetching settings:', err);
     }
@@ -520,7 +525,9 @@ export default function Admin() {
           enabled: bannerEnabled,
           message: bannerMessage,
           type: bannerType
-        }
+        },
+        hqAddress,
+        hqMapUrl
       });
       triggerAlert('Settings Saved', 'System operational parameters updated successfully.', 'success');
     } catch (err) {
@@ -1339,6 +1346,55 @@ export default function Admin() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Headquarters Location & Google Map Embed Settings */}
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                  <h4 className="text-xs font-extrabold text-white flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-prasatek-primary" />
+                    Headquarters Location & Google Map Embed
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Paste a Google Maps embed link or &lt;iframe&gt; code to update the Contact Page map & location in real-time.
+                  </p>
+
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Headquarters Physical Address</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Kottawa Road, Colombo District, Sri Lanka"
+                        value={hqAddress}
+                        onChange={(e) => setHqAddress(e.target.value)}
+                        className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Google Maps Embed Link / &lt;iframe&gt; Code</label>
+                      <textarea
+                        rows="3"
+                        placeholder="Paste Google Maps embed URL (https://www.google.com/maps/embed?...) or full <iframe> code"
+                        value={hqMapUrl}
+                        onChange={(e) => setHqMapUrl(e.target.value)}
+                        className="w-full bg-slate-950 text-white text-xs font-mono font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary resize-none"
+                      />
+                    </div>
+
+                    {hqMapUrl && (
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Live Map Preview</label>
+                        <div className="rounded-xl overflow-hidden border border-slate-800 h-36 bg-slate-950">
+                          <iframe
+                            src={hqMapUrl.includes('src="') ? (hqMapUrl.match(/src="([^"]+)"/)?.[1] || hqMapUrl) : hqMapUrl}
+                            className="w-full h-full border-0"
+                            loading="lazy"
+                            title="Admin HQ Map Preview"
+                          ></iframe>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <button
