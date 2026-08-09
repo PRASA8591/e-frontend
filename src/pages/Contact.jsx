@@ -137,7 +137,7 @@ export default function Contact() {
     currentTime: 'වත්මන් වේලාව:',
     headquarters: 'ප්‍රධාන කාර්යාලය',
     getRoute: 'පාර සොයා ගන්න',
-    companyName: 'ප්‍රසාටෙක් සිස්ටම් සොලූෂන්ස්',
+    companyName: 'PrasaTek System Solutions',
     address: 'කොට්ටාව පාර, කොළඹ දිස්ත්‍රික්කය, ශ්‍රී ලංකාව',
     faqsTitle: 'නිතර අසන ප්‍රශ්න',
     faqs: [
