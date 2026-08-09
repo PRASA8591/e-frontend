@@ -23,6 +23,7 @@ export default function Contact() {
   // Form States
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
   const [category, setCategory] = useState('General Inquiry');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -221,6 +222,7 @@ export default function Contact() {
       const response = await axios.post('/api/contacts', {
         name,
         email,
+        mobile,
         category,
         subject,
         message
@@ -231,6 +233,7 @@ export default function Contact() {
       
       setName('');
       setEmail('');
+      setMobile('');
       setCategory('General Inquiry');
       setSubject('');
       setMessage('');
@@ -354,8 +357,8 @@ export default function Contact() {
                 </div>
               )}
 
-              {/* Name & Email Group */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Name, Email & Mobile Group */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wide">{t.yourName}</label>
                   <input 
@@ -388,6 +391,17 @@ export default function Contact() {
                     } outline-none focus:ring-2 focus:bg-white transition`}
                   />
                   {validationErrors.email && <p className="text-[10px] font-bold text-red-500">{validationErrors.email}</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wide">Mobile Number</label>
+                  <input 
+                    type="tel" 
+                    placeholder="071XXXXXXX"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    className="w-full bg-slate-50 text-slate-800 text-xs font-bold rounded-xl p-3 border border-slate-100 focus:ring-2 focus:ring-prasatek-primary outline-none focus:bg-white transition"
+                  />
                 </div>
               </div>
 

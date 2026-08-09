@@ -317,8 +317,15 @@ export default function Auth() {
             </div>
           </div>
 
-          <div className="text-center text-[10px] text-gray-400 font-bold mt-6">
-            &copy; {new Date().getFullYear()} Prasatek System Solutions. All rights reserved.
+          <div className="text-center text-[11px] text-gray-400 font-semibold mt-6 space-y-2">
+            <div className="flex items-center justify-center gap-4 text-xs font-bold text-gray-500">
+              <Link to="/privacy" className="hover:text-prasatek-primary transition">Privacy Policy</Link>
+              <span>•</span>
+              <Link to="/terms" className="hover:text-prasatek-primary transition">Terms of Service</Link>
+              <span>•</span>
+              <Link to="/contact" className="hover:text-prasatek-primary transition">Contact Support</Link>
+            </div>
+            <p>&copy; {new Date().getFullYear()} Prasatek System Solutions. All rights reserved.</p>
           </div>
         </div>
 

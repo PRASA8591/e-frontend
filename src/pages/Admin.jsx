@@ -106,6 +106,10 @@ export default function Admin() {
   const [scheduledEnd, setScheduledEnd] = useState('');
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
 
+  // Ticket Email Reply state
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+
   // System Operational Settings (Maintenance Mode & Global Banner)
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
@@ -450,6 +454,27 @@ export default function Admin() {
       setShowConfirm(false);
     });
     setShowConfirm(true);
+  };
+
+  // Send Support Ticket Email Reply
+  const handleSendTicketReply = async (e) => {
+    e.preventDefault();
+    if (!selectedContact || !replyText.trim()) return;
+
+    setSendingReply(true);
+    try {
+      const res = await axios.post(`/api/contacts/${selectedContact._id}/reply`, {
+        replyMessage: replyText
+      });
+      setReplyText('');
+      setSelectedContact(res.data.contact);
+      fetchContacts();
+      triggerAlert('Email Sent', res.data.message, 'success');
+    } catch (err) {
+      triggerAlert('Error', err.response?.data?.message || 'Failed to send reply email.', 'error');
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   // Update System Operational Settings (Maintenance Mode / Global Banner)
@@ -1228,7 +1253,7 @@ export default function Admin() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-6 bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 max-h-[550px] overflow-y-auto hide-scroll">
+              <div className="lg:col-span-5 bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 max-h-[600px] overflow-y-auto hide-scroll">
                 {contactsLoading ? (
                   <div className="py-12 text-center text-xs text-slate-500 font-bold">Loading support messages...</div>
                 ) : contacts.length === 0 ? (
@@ -1243,10 +1268,16 @@ export default function Admin() {
                       }`}
                     >
                       <div>
-                        <h4 className="font-extrabold text-xs text-white">{c.subject || 'General Inquiry'}</h4>
-                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{c.name} ({c.email})</p>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-extrabold text-xs text-white">{c.subject || 'General Inquiry'}</h4>
+                          {c.status === 'replied' && (
+                            <span className="text-[9px] font-extrabold bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-md">Replied</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{c.name} • {c.email}</p>
+                        {c.mobile && <p className="text-[10px] text-prasatek-primary font-bold">Mobile: {c.mobile}</p>}
                       </div>
-                      <span className="text-[9px] font-extrabold uppercase bg-slate-800 text-slate-400 px-2 py-1 rounded-md">
+                      <span className="text-[9px] font-extrabold uppercase bg-slate-800 text-slate-400 px-2 py-1 rounded-md shrink-0">
                         {c.category || 'General'}
                       </span>
                     </div>
@@ -1254,26 +1285,73 @@ export default function Admin() {
                 )}
               </div>
 
-              <div className="lg:col-span-6 bg-slate-950 p-5 rounded-2xl border border-slate-800">
+              <div className="lg:col-span-7 bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-5">
                 {selectedContact ? (
-                  <div className="space-y-4 text-xs font-semibold">
-                    <div className="border-b border-slate-900 pb-3">
-                      <span className="text-[9px] font-extrabold uppercase text-prasatek-primary">{selectedContact.category}</span>
-                      <h3 className="text-base font-extrabold text-white mt-1">{selectedContact.subject}</h3>
-                      <p className="text-slate-400 mt-0.5">From: {selectedContact.name} &lt;{selectedContact.email}&gt;</p>
+                  <div className="space-y-4 text-xs font-semibold animate-fade-in">
+                    <div className="border-b border-slate-900 pb-3 flex justify-between items-start">
+                      <div>
+                        <span className="text-[9px] font-extrabold uppercase text-prasatek-primary">{selectedContact.category}</span>
+                        <h3 className="text-lg font-extrabold text-white mt-1">{selectedContact.subject}</h3>
+                        <p className="text-slate-400 mt-0.5">
+                          From: <strong className="text-white">{selectedContact.name}</strong> ({selectedContact.email})
+                          {selectedContact.mobile && <span className="text-prasatek-primary font-bold block">Mobile: {selectedContact.mobile}</span>}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${
+                        selectedContact.status === 'replied' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}>
+                        {selectedContact.status}
+                      </span>
                     </div>
 
-                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-slate-200 leading-relaxed whitespace-pre-wrap">
-                      {selectedContact.message}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-extrabold uppercase text-slate-500">Client Message Content</span>
+                      <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-slate-200 leading-relaxed whitespace-pre-wrap">
+                        {selectedContact.message}
+                      </div>
                     </div>
 
-                    <div className="pt-2 text-[10px] text-slate-500 font-bold">
-                      Ticket ID: {selectedContact._id}
-                    </div>
+                    {/* Display Previous Admin Reply if exists */}
+                    {selectedContact.adminReply && (
+                      <div className="space-y-2 pt-2 border-t border-slate-900">
+                        <span className="text-[10px] font-extrabold uppercase text-green-400">Previous Admin Email Reply Sent</span>
+                        <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl text-slate-200 leading-relaxed whitespace-pre-wrap">
+                          {selectedContact.adminReply}
+                        </div>
+                        {selectedContact.repliedAt && (
+                          <p className="text-[10px] text-slate-500 font-bold">Sent on: {new Date(selectedContact.repliedAt).toLocaleString()}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Official Email Reply Form */}
+                    <form onSubmit={handleSendTicketReply} className="space-y-3 pt-4 border-t border-slate-900">
+                      <h4 className="text-xs font-extrabold text-white flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-prasatek-primary" />
+                        Reply to Ticket via Official Email (noreply@prasatek.lk)
+                      </h4>
+
+                      <textarea
+                        rows="4"
+                        placeholder={`Type official support response to send to ${selectedContact.email}...`}
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="w-full bg-slate-900 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:border-prasatek-primary resize-none"
+                        required
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={sendingReply}
+                        className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs py-3 rounded-xl transition shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {sendingReply ? 'Sending Email Reply...' : 'Send Official Email Reply'}
+                      </button>
+                    </form>
                   </div>
                 ) : (
                   <div className="py-20 text-center text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    Select a ticket to inspect message details
+                    Select a ticket to inspect message details and send official reply
                   </div>
                 )}
               </div>
