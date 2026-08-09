@@ -11,12 +11,70 @@ import {
   Eye, 
   EyeOff, 
   Check, 
-  AlertTriangle 
+  AlertTriangle,
+  RotateCcw,
+  Trash2,
+  AlertOctagon,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, login } = useAuth(); // login handles updating the context user model when supplied a payload
+  const { user, login, logout } = useAuth(); // login handles updating user, logout clears auth session
+
+  // Danger Zone States (Reset & Delete Account)
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resettingAccount, setResettingAccount] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePass, setShowDeletePass] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [dangerError, setDangerError] = useState('');
+  const [dangerSuccess, setDangerSuccess] = useState('');
+
+  // Handle Reset Account Action
+  const handleResetAccount = async () => {
+    setResettingAccount(true);
+    setDangerError('');
+    setDangerSuccess('');
+    try {
+      await axios.post('/api/auth/reset-account');
+      setDangerSuccess('Account reset successful! All accounts and transaction histories have been wiped.');
+      setShowResetModal(false);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } catch (err) {
+      setDangerError(err.response?.data?.message || 'Failed to reset account data.');
+    } finally {
+      setResettingAccount(false);
+    }
+  };
+
+  // Handle Delete Account Action
+  const handleDeleteAccount = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setDeletingAccount(true);
+    setDangerError('');
+    setDangerSuccess('');
+
+    try {
+      await axios.delete('/api/auth/delete-account', {
+        data: { password: deletePassword }
+      });
+      setDangerSuccess('Your account and all associated data have been permanently deleted.');
+      setShowDeleteModal(false);
+      setTimeout(() => {
+        logout();
+        navigate('/login');
+      }, 1500);
+    } catch (err) {
+      setDangerError(err.response?.data?.message || 'Failed to delete account. Please check your password.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
 
   // Profile Form States
   const [name, setName] = useState(user?.name || '');
@@ -356,6 +414,77 @@ export default function Settings() {
             </div>
           </section>
 
+          {/* Section 3: Danger Zone / Account Management */}
+          <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-red-100 dark:border-red-900/30 shadow-sm">
+            <div className="flex items-center gap-2 pb-4 border-b border-red-100 dark:border-red-900/20">
+              <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-500" />
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Danger Zone & Account Actions</h2>
+            </div>
+
+            <div className="space-y-4 mt-5">
+              {dangerSuccess && (
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 text-prasatek-primary dark:text-green-400 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> {dangerSuccess}
+                </div>
+              )}
+              {dangerError && (
+                <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <AlertOctagon className="w-4 h-4" /> {dangerError}
+                </div>
+              )}
+
+              {/* Action 1: Reset Account Data */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-50/50 dark:bg-amber-950/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <RotateCcw className="w-4 h-4 text-amber-600 dark:text-amber-500" />
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Reset Account Data</p>
+                  </div>
+                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">
+                    Wipes all financial accounts, balances, and transaction history clean while keeping your user profile active.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDangerError('');
+                    setDangerSuccess('');
+                    setShowResetModal(true);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  Reset Account
+                </button>
+              </div>
+
+              {/* Action 2: Delete Account Permanently */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-red-50/50 dark:bg-red-950/10 p-4 rounded-xl border border-red-100 dark:border-red-900/20">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Trash2 className="w-4 h-4 text-red-600 dark:text-red-500" />
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Delete Account Permanently</p>
+                  </div>
+                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">
+                    Permanently delete your profile and all associated data per Privacy Policy #6. Action cannot be undone.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDangerError('');
+                    setDangerSuccess('');
+                    setDeletePassword('');
+                    setShowDeleteModal(true);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  Delete Account
+                </button>
+              </div>
+
+            </div>
+          </section>
+
         </div>
 
         {/* Right Column: Password Change Panel */}
@@ -479,6 +608,114 @@ export default function Settings() {
                 Upgrade Plan
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Account Warning Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-amber-100 dark:border-amber-900/30">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 mb-3">
+              <div className="p-2.5 bg-amber-100 dark:bg-amber-950/40 rounded-xl">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Reset Account Data</h3>
+                <p className="text-[11px] font-semibold text-slate-400">Confirmation Required</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl text-xs font-bold text-amber-900 dark:text-amber-300 leading-relaxed my-4">
+              ⚠️ After reset, all your data will be deleted: all accounts and all transaction histories are gone. Are you sure?
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button 
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="w-1/2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl transition cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleResetAccount}
+                disabled={resettingAccount}
+                className="w-1/2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-3 rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer text-xs disabled:opacity-50"
+              >
+                {resettingAccount ? 'Resetting Data...' : 'Yes, Reset Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-red-100 dark:border-red-900/30">
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-500 mb-3">
+              <div className="p-2.5 bg-red-100 dark:bg-red-950/40 rounded-xl">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Permanently Delete Account</h3>
+                <p className="text-[11px] font-semibold text-slate-400">Privacy Policy Section #6</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed mb-4">
+              This action will permanently remove your user profile, credentials, financial accounts, and transaction history from our servers.
+            </p>
+
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              {user?.authProvider === 'google' ? (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/30 text-blue-700 dark:text-blue-400 p-3 rounded-xl text-xs font-bold">
+                  🔒 Google Login User: No password required. Click confirm below to finalize account deletion.
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wide">
+                    Re-enter Password to Confirm
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type={showDeletePass ? 'text' : 'password'}
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Enter your current password"
+                      required
+                      className="w-full bg-slate-50 dark:bg-slate-800/40 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl pl-3 pr-10 py-3 border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-red-500 transition font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeletePass(!showDeletePass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showDeletePass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="w-1/2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl transition cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={deletingAccount}
+                  className="w-1/2 bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer text-xs disabled:opacity-50"
+                >
+                  {deletingAccount ? 'Deleting Account...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
