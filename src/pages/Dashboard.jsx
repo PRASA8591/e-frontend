@@ -1446,14 +1446,25 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Category</label>
-                    <input 
-                      type="text" 
+                    <select
                       value={editTxCategory}
                       onChange={(e) => setEditTxCategory(e.target.value)}
-                      placeholder="Category"
-                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none"
+                      className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-3 py-3 border-none outline-none cursor-pointer"
                       required
-                    />
+                    >
+                      <option value="Income">Income / Salary</option>
+                      <option value="Money Transfer To Me">Money Transfer To Me</option>
+                      <option value="Food & Dining">Food & Dining</option>
+                      <option value="Utilities">Utilities</option>
+                      <option value="Software/Servers">Software/Servers</option>
+                      <option value="Transportation">Transportation</option>
+                      <option value="Hardware/Repairs">Hardware/Repairs</option>
+                      <option value="Entertainment">Entertainment</option>
+                      <option value="Other">Other</option>
+                      {!['Income', 'Money Transfer To Me', 'Food & Dining', 'Utilities', 'Software/Servers', 'Transportation', 'Hardware/Repairs', 'Entertainment', 'Other'].includes(editTxCategory) && editTxCategory && (
+                        <option value={editTxCategory}>{editTxCategory} (Custom)</option>
+                      )}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Amount ({activeCurrency})</label>
