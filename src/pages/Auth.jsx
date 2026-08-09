@@ -317,15 +317,26 @@ export default function Auth() {
             </div>
           </div>
 
-          <div className="text-center text-[11px] text-gray-400 font-semibold mt-6 space-y-2">
-            <div className="flex items-center justify-center gap-4 text-xs font-bold text-gray-500">
-              <Link to="/privacy" className="hover:text-prasatek-primary transition">Privacy Policy</Link>
-              <span>•</span>
-              <Link to="/terms" className="hover:text-prasatek-primary transition">Terms of Service</Link>
-              <span>•</span>
-              <Link to="/contact" className="hover:text-prasatek-primary transition">Contact Support</Link>
+          <div className="text-center mt-6 space-y-1.5">
+            <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase text-slate-500 tracking-[0.15em]">
+              <Link to="/privacy" className="hover:text-prasatek-primary transition">PRIVACY</Link>
+              <span className="text-slate-300 font-normal">|</span>
+              <Link to="/terms" className="hover:text-prasatek-primary transition">TERMS</Link>
+              <span className="text-slate-300 font-normal">|</span>
+              <Link to="/contact" className="hover:text-prasatek-primary transition">CONTACT</Link>
             </div>
-            <p>&copy; {new Date().getFullYear()} Prasatek System Solutions. All rights reserved.</p>
+            
+            <p className="text-[10px] font-extrabold uppercase text-slate-400 tracking-[0.2em]">
+              A PRODUCT BY PRASATEK SYSTEM SOLUTIONS
+            </p>
+
+            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center justify-center gap-2">
+              <a href="https://www.prasatek.lk" target="_blank" rel="noreferrer" className="hover:text-prasatek-primary transition">WWW.PRASATEK.LK</a>
+              <span className="text-slate-300 font-normal">|</span>
+              <a href="mailto:info@prasatek.lk" className="hover:text-prasatek-primary transition">INFO@PRASATEK.LK</a>
+              <span className="text-slate-300 font-normal">|</span>
+              <a href="tel:0719323239" className="hover:text-prasatek-primary transition">0719323239</a>
+            </p>
           </div>
         </div>
 
