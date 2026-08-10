@@ -8,11 +8,14 @@ import App from './App.jsx'
 const RENDER_BACKEND_URL = 'https://backend-xolk.onrender.com';
 let apiBaseUrl = import.meta.env.VITE_API_URL || RENDER_BACKEND_URL;
 
-// In production (Vercel / custom domain), automatically route API requests to Render backend
-if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-  if (!apiBaseUrl || apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1')) {
-    apiBaseUrl = RENDER_BACKEND_URL;
-  }
+// Ensure no trailing slashes on base URL
+if (apiBaseUrl && apiBaseUrl.endsWith('/')) {
+  apiBaseUrl = apiBaseUrl.slice(0, -1);
+}
+
+// In production deployment without explicit VITE_API_URL set, fallback to Render backend
+if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  apiBaseUrl = RENDER_BACKEND_URL;
 }
 
 axios.defaults.baseURL = apiBaseUrl;

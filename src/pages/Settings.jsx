@@ -414,6 +414,15 @@ export default function Settings() {
             </div>
           </section>
 
+          {/* Section: Two-Factor Authentication (2FA) */}
+          <TwoFactorSection user={user} login={login} />
+
+          {/* Section: Active Device Sessions Manager */}
+          <ActiveSessionsSection />
+
+          {/* Section: Bank SMS Sync Settings */}
+          <SmsSyncSection user={user} login={login} />
+
           {/* Section 3: Danger Zone / Account Management */}
           <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-red-100 dark:border-red-900/30 shadow-sm">
             <div className="flex items-center gap-2 pb-4 border-b border-red-100 dark:border-red-900/20">
@@ -722,3 +731,322 @@ export default function Settings() {
     </div>
   );
 }
+
+// Two-Factor Authentication Subcomponent
+function TwoFactorSection({ user, login }) {
+  const [setupData, setSetupData] = useState(null);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  const handleStartSetup = async () => {
+    setLoading(true);
+    setMsg('');
+    setError('');
+    try {
+      const res = await axios.post('/api/auth/2fa/setup');
+      setSetupData(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to setup 2FA.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    if (!verifyCode.trim()) return;
+    setLoading(true);
+    setMsg('');
+    setError('');
+    try {
+      const res = await axios.post('/api/auth/2fa/verify', {
+        token: verifyCode,
+        secret: setupData?.secret
+      });
+      setMsg(res.data.message);
+      const token = localStorage.getItem('token');
+      login({ ...user, twoFactorEnabled: true, token });
+      setSetupData(null);
+      setVerifyCode('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    setLoading(true);
+    setMsg('');
+    setError('');
+    try {
+      const res = await axios.post('/api/auth/2fa/disable');
+      setMsg(res.data.message);
+      const token = localStorage.getItem('token');
+      login({ ...user, twoFactorEnabled: false, token });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to disable 2FA.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <Lock className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Two-Factor Authentication (TOTP 2FA)</h2>
+        </div>
+        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
+          user?.twoFactorEnabled 
+            ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' 
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+        }`}>
+          {user?.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+        </span>
+      </div>
+
+      {msg && <p className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 p-3 rounded-xl">{msg}</p>}
+      {error && <p className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-3 rounded-xl">{error}</p>}
+
+      {!user?.twoFactorEnabled ? (
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Secure your account using standard TOTP apps (Google Authenticator, Authy, 1Password).
+          </p>
+
+          {!setupData ? (
+            <button
+              onClick={handleStartSetup}
+              disabled={loading}
+              className="bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow transition cursor-pointer"
+            >
+              {loading ? 'Generating QR Code...' : 'Configure 2FA QR Code'}
+            </button>
+          ) : (
+            <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-w-md">
+              <div className="text-center space-y-2">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">1. Scan QR Code in Authenticator App</p>
+                <img src={setupData.qrCodeUrl} alt="2FA QR Code" className="w-40 h-40 mx-auto rounded-xl border p-2 bg-white" />
+                <p className="text-[10px] font-mono text-slate-500">Secret: {setupData.secret}</p>
+              </div>
+
+              <form onSubmit={handleVerify2FA} className="space-y-3">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">2. Enter 6-digit Code</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono text-center tracking-widest text-slate-800 dark:text-slate-100"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || verifyCode.length < 6}
+                  className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs py-2.5 rounded-xl shadow transition disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? 'Verifying...' : 'Verify & Enable 2FA'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Your account is protected with 2FA TOTP authentication.</p>
+          <button
+            onClick={handleDisable2FA}
+            disabled={loading}
+            className="bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-extrabold text-xs px-4 py-2 rounded-xl border border-red-500/20 transition cursor-pointer"
+          >
+            Disable 2FA
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Active Sessions Manager Subcomponent
+function ActiveSessionsSection() {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSessions = async () => {
+    try {
+      const res = await axios.get('/api/auth/sessions');
+      setSessions(res.data);
+    } catch (err) {
+      console.error('Fetch sessions error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const res = await axios.delete(`/api/auth/sessions/${sessionId}`);
+      setSessions(res.data.sessions);
+    } catch (err) {
+      console.error('Revoke session error:', err);
+    }
+  };
+
+  return (
+    <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <User className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Active Login Devices & Sessions</h2>
+        </div>
+        <span className="text-[10px] font-bold text-slate-400">{sessions.length} Active Sessions</span>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-slate-400 font-semibold py-2">Loading active sessions...</p>
+      ) : sessions.length === 0 ? (
+        <p className="text-xs text-slate-400 font-semibold py-2">No other active device sessions found.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase text-slate-400 font-extrabold">
+                <th className="py-2.5 px-2">Device / Browser</th>
+                <th className="py-2.5 px-2">IP Address</th>
+                <th className="py-2.5 px-2">Logged In At</th>
+                <th className="py-2.5 px-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {sessions.map((sess, idx) => (
+                <tr key={sess.sessionId || idx}>
+                  <td className="py-3 px-2 font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">{sess.device || 'Browser Session'}</td>
+                  <td className="py-3 px-2 font-mono text-slate-500">{sess.ip || '127.0.0.1'}</td>
+                  <td className="py-3 px-2 text-slate-400">{new Date(sess.createdAt || Date.now()).toLocaleDateString()}</td>
+                  <td className="py-3 px-2 text-right">
+                    <button
+                      onClick={() => handleRevokeSession(sess.sessionId || sess._id)}
+                      className="px-2.5 py-1 text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
+                    >
+                      Revoke Session
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Bank SMS Sync Configuration Subcomponent
+function SmsSyncSection({ user, login }) {
+  const [smsSyncEnabled, setSmsSyncEnabled] = useState(user?.smsSyncEnabled || false);
+  const [senders, setSenders] = useState(user?.linkedBankSenders || ['COMBANK', 'SAMPATH', 'HNB']);
+  const [newSender, setNewSender] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const handleSaveSmsSettings = async (enabledState, sendersList) => {
+    setSaving(true);
+    setMsg('');
+    try {
+      const res = await axios.put('/api/auth/sms-sync', {
+        smsSyncEnabled: enabledState,
+        linkedBankSenders: sendersList
+      });
+      const token = localStorage.getItem('token');
+      login({ ...user, smsSyncEnabled: res.data.smsSyncEnabled, linkedBankSenders: res.data.linkedBankSenders, token });
+      setMsg('Bank SMS Sync settings updated.');
+    } catch (err) {
+      console.error('SMS sync update error:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddSender = (e) => {
+    e.preventDefault();
+    if (!newSender.trim()) return;
+    const updated = [...new Set([...senders, newSender.trim().toUpperCase()])];
+    setSenders(updated);
+    setNewSender('');
+    handleSaveSmsSettings(smsSyncEnabled, updated);
+  };
+
+  const handleRemoveSender = (senderToRemove) => {
+    const updated = senders.filter(s => s !== senderToRemove);
+    setSenders(updated);
+    handleSaveSmsSettings(smsSyncEnabled, updated);
+  };
+
+  return (
+    <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <SettingsIcon className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Bank SMS Sync Configuration</h2>
+        </div>
+      </div>
+
+      {msg && <p className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 p-3 rounded-xl">{msg}</p>}
+
+      <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/40">
+        <div>
+          <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Enable Bank SMS Auto-Parsing</p>
+          <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Automatically extract amount, merchant, and categories from incoming bank SMS notifications.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={smsSyncEnabled}
+          onChange={(e) => {
+            setSmsSyncEnabled(e.target.checked);
+            handleSaveSmsSettings(e.target.checked, senders);
+          }}
+          className="w-5 h-5 accent-prasatek-primary cursor-pointer"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
+          Linked Bank SMS Sender IDs
+        </label>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {senders.map((snd, idx) => (
+            <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+              {snd}
+              <button onClick={() => handleRemoveSender(snd)} className="text-slate-400 hover:text-red-500 cursor-pointer">✕</button>
+            </span>
+          ))}
+        </div>
+
+        <form onSubmit={handleAddSender} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="e.g. SEYLAN / DFCC / NTB"
+            value={newSender}
+            onChange={(e) => setNewSender(e.target.value)}
+            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 outline-none uppercase"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold text-xs rounded-xl shadow transition cursor-pointer"
+          >
+            Add Bank Sender
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+

@@ -618,6 +618,16 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Pending Payment Review Banner */}
+        {user?.pendingPlan && user?.pendingPlan !== 'none' && (
+          <div className="bg-amber-500 text-white text-xs font-bold px-4 py-2.5 shadow-md flex items-center justify-between gap-4 animate-fade-in shrink-0">
+            <div className="flex items-center gap-2 max-w-5xl mx-auto text-center justify-center flex-1">
+              <span className="bg-white/20 uppercase text-[9px] font-extrabold px-2 py-0.5 rounded-md tracking-wider">Payment Under Review</span>
+              <span>Your bank payment proof for the <strong>{user.pendingPlan.toUpperCase()}</strong> plan is pending Admin verification.</span>
+            </div>
+          </div>
+        )}
+
         {/* Header bar */}
         <div className="bg-white dark:bg-slate-900 px-6 pt-6 pb-6 shadow-sm border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
@@ -1154,9 +1164,14 @@ export default function Dashboard() {
                         <li key={tx._id} className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-50 dark:border-slate-800">
                           <div className="flex-1 overflow-hidden pr-3">
                             <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{tx.description}</p>
-                            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 mt-1 uppercase tracking-wide">
-                              <span className="bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400 mr-1">{tx.category}</span>
-                              <span className="text-slate-400 dark:text-slate-500">{accRef ? accRef.name : 'Unknown Account'}</span> • {tx.date}
+                            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 mt-1 uppercase tracking-wide flex items-center flex-wrap gap-1">
+                              <span className="bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400">{tx.category}</span>
+                              {tx.source === 'sms_auto' && (
+                                <span className="bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-extrabold text-[9px] border border-blue-200 dark:border-blue-800/40">
+                                  🤖 SMS Auto-Logged
+                                </span>
+                              )}
+                              <span className="text-slate-400 dark:text-slate-500">{accRef ? accRef.name : 'Unknown Account'} • {tx.date}</span>
                             </p>
                           </div>
                           <div className="flex items-center gap-3">

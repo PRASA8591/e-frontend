@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
       }
       return {
         success: false,
-        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Connecting to Render backend server... Please wait 10 seconds and try again.' : (error.message || 'Login failed'))
+        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? `Unable to connect to backend server at ${axios.defaults.baseURL || 'http://localhost:5000'}. Please ensure your local backend server is running.` : (error.message || 'Login failed'))
       };
     }
   };
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Connecting to Render backend server... Please wait 10 seconds and try again.' : (error.message || 'Google login failed'))
+        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? `Unable to connect to backend server at ${axios.defaults.baseURL || 'http://localhost:5000'}. Please ensure your local backend server is running.` : (error.message || 'Google login failed'))
       };
     }
   };

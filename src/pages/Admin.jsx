@@ -119,6 +119,30 @@ export default function Admin() {
   const [hqAddress, setHqAddress] = useState('Kottawa Road, Colombo District, Sri Lanka');
   const [hqMapUrl, setHqMapUrl] = useState('https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.385418197779!2d79.9610!3d6.8440!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2501a3512e02d%3A0x6b4f738e4a9e5251!2sKottawa%2C%20Pannipitiya!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk');
   const [updatingSettings, setUpdatingSettings] = useState(false);
+  // Pending Bank Payment Orders State
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [pendingOrdersLoading, setPendingOrdersLoading] = useState(false);
+  const [selectedSlipUrl, setSelectedSlipUrl] = useState(null);
+  const [rejectModalOrder, setRejectModalOrder] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const fetchPendingOrders = async () => {
+    setPendingOrdersLoading(true);
+    try {
+      const res = await axios.get('/api/admin/payments/pending');
+      setPendingOrders(res.data);
+    } catch (err) {
+      console.error('Fetch pending orders error:', err.message);
+    } finally {
+      setPendingOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'pending_payments') {
+      fetchPendingOrders();
+    }
+  }, [activeTab]);
 
   // Custom Popup Alert/Confirm States
   const [showConfirm, setShowConfirm] = useState(false);
@@ -648,6 +672,16 @@ export default function Admin() {
           </button>
 
           <button
+            onClick={() => setActiveTab('pending_payments')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-xs transition cursor-pointer shrink-0 ${
+              activeTab === 'pending_payments' ? 'bg-prasatek-primary text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <Building className="w-4 h-4 text-green-400" />
+            Pending Payments ({pendingOrders.length})
+          </button>
+
+          <button
             onClick={() => setActiveTab('audit')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-xs transition cursor-pointer shrink-0 ${
               activeTab === 'audit' ? 'bg-prasatek-primary text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -772,6 +806,123 @@ export default function Admin() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ==================== TAB: PENDING BANK PAYMENTS ==================== */}
+        {activeTab === 'pending_payments' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 pb-4">
+                <div>
+                  <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                    <Building className="w-5 h-5 text-prasatek-primary" />
+                    Pending Bank Deposit Payments Manager
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Verify uploaded payment slips, check order reference numbers, and approve user plan upgrades.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchPendingOrders}
+                  className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300 transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh Orders
+                </button>
+              </div>
+
+              {pendingOrdersLoading ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-bold">
+                  Loading pending payment orders...
+                </div>
+              ) : pendingOrders.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-bold">
+                  No pending bank deposit payment orders found.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300 font-semibold">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-[10px] uppercase font-extrabold text-slate-500">
+                        <th className="py-3 px-3">Order ID</th>
+                        <th className="py-3 px-3">User Details</th>
+                        <th className="py-3 px-3">Plan / Cycle</th>
+                        <th className="py-3 px-3">Amount</th>
+                        <th className="py-3 px-3">Date</th>
+                        <th className="py-3 px-3">Payment Slip</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-900">
+                      {pendingOrders.map(ord => (
+                        <tr key={ord._id} className="hover:bg-slate-900/50 transition">
+                          <td className="py-3 px-3 font-mono font-bold text-prasatek-primary">{ord.orderId}</td>
+                          <td className="py-3 px-3">
+                            <p className="font-bold text-white">{ord.userId?.name || 'Unknown User'}</p>
+                            <p className="text-[10px] text-slate-400">{ord.userId?.email}</p>
+                            {ord.userId?.mobile && <p className="text-[10px] text-slate-500">{ord.userId.mobile}</p>}
+                          </td>
+                          <td className="py-3 px-3 uppercase font-extrabold text-slate-200">
+                            {ord.plan} ({ord.billingCycle})
+                          </td>
+                          <td className="py-3 px-3 font-bold text-green-400">
+                            LKR {ord.amount?.toLocaleString()}
+                          </td>
+                          <td className="py-3 px-3 text-slate-400">
+                            {new Date(ord.createdAt).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-3">
+                            {ord.receiptUrl ? (
+                              <button
+                                onClick={() => setSelectedSlipUrl(ord.receiptUrl)}
+                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold border border-blue-500/20 rounded-xl text-xs transition cursor-pointer flex items-center gap-1"
+                              >
+                                <FileText className="w-3.5 h-3.5" /> Preview Slip
+                              </button>
+                            ) : (
+                              <span className="text-slate-500 text-[10px]">No Slip Attached</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => {
+                                  setConfirmTitle('Approve Payment Order');
+                                  setConfirmMsg(`Are you sure you want to approve Order ${ord.orderId} for ${ord.userId?.name} (${ord.userId?.email})? This will immediately upgrade them to the ${ord.plan.toUpperCase()} plan.`);
+                                  setConfirmAction(() => async () => {
+                                    try {
+                                      const res = await axios.put(`/api/admin/payments/${ord._id}/approve`);
+                                      triggerAlert('Approved & Activated', res.data.message, 'success');
+                                      fetchPendingOrders();
+                                      fetchData();
+                                    } catch (err) {
+                                      triggerAlert('Approval Error', err.response?.data?.message || 'Failed to approve payment.', 'error');
+                                    }
+                                  });
+                                  setShowConfirm(true);
+                                }}
+                                className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-extrabold rounded-xl border border-green-500/30 transition text-xs cursor-pointer flex items-center gap-1"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve & Activate
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRejectModalOrder(ord);
+                                  setRejectReason('');
+                                }}
+                                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-extrabold rounded-xl border border-red-500/30 transition text-xs cursor-pointer flex items-center gap-1"
+                              >
+                                <XCircle className="w-3.5 h-3.5" /> Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1710,6 +1861,93 @@ export default function Admin() {
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Slip Preview Modal */}
+      {selectedSlipUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-fade-in">
+          <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col items-center max-h-[90vh] overflow-hidden shadow-2xl">
+            <button
+              onClick={() => setSelectedSlipUrl(null)}
+              className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-full transition cursor-pointer"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+            <h3 className="text-base font-extrabold text-white mb-4">Payment Receipt Slip Preview</h3>
+            
+            <div className="w-full flex-1 overflow-auto flex items-center justify-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              {selectedSlipUrl.endsWith('.pdf') ? (
+                <iframe src={selectedSlipUrl} title="Slip PDF" className="w-full h-[600px] rounded-xl" />
+              ) : (
+                <img src={selectedSlipUrl} alt="Payment Slip Proof" className="max-w-full max-h-[600px] object-contain rounded-xl shadow-lg" />
+              )}
+            </div>
+            
+            <a
+              href={selectedSlipUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 px-4 py-2 bg-prasatek-primary hover:bg-[#09734a] text-white font-bold text-xs rounded-xl transition flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Open Full Resolution / Download
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Payment Reason Modal */}
+      {rejectModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <XCircle className="w-8 h-8 text-red-500 shrink-0" />
+              <div>
+                <h3 className="text-base font-extrabold">Reject Payment Order</h3>
+                <p className="text-xs text-slate-400">Order: <span className="font-mono text-white">{rejectModalOrder.orderId}</span></p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Reason for Rejection</label>
+              <textarea
+                rows={3}
+                placeholder="e.g. Deposit slip image is unreadable / Amount does not match Order ID..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRejectModalOrder(null)}
+                className="w-1/2 bg-slate-800 hover:bg-slate-700 font-bold py-2.5 rounded-xl transition text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await axios.put(`/api/admin/payments/${rejectModalOrder._id}/reject`, {
+                      adminNotes: rejectReason || 'Payment slip could not be verified.'
+                    });
+                    triggerAlert('Payment Rejected', res.data.message, 'warning');
+                    setRejectModalOrder(null);
+                    fetchPendingOrders();
+                    fetchData();
+                  } catch (err) {
+                    triggerAlert('Error', err.response?.data?.message || 'Failed to reject payment.', 'error');
+                  }
+                }}
+                className="w-1/2 bg-red-600 hover:bg-red-700 font-bold py-2.5 rounded-xl transition text-xs shadow-md cursor-pointer"
+              >
+                Confirm Reject
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -204,8 +204,89 @@ export default function Subscription() {
             </p>
           </div>
         </aside>
-
       </main>
+
+      {/* Payment Orders History Section */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 w-full mt-8">
+        <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
+            Bank Payment Orders History
+          </h2>
+
+          <PaymentOrdersTable />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function PaymentOrdersTable() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await axios.get('/api/payments/my-orders');
+        setOrders(res.data);
+      } catch (err) {
+        console.error('Failed to fetch payment orders:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  if (loading) {
+    return <p className="text-xs text-slate-400 font-bold py-4">Loading payment order history...</p>;
+  }
+
+  if (orders.length === 0) {
+    return <p className="text-xs text-slate-400 font-semibold py-4">No bank payment orders submitted yet.</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs font-semibold text-slate-700 dark:text-slate-300">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase font-extrabold text-slate-400">
+            <th className="py-3 px-2">Order ID</th>
+            <th className="py-3 px-2">Plan</th>
+            <th className="py-3 px-2">Amount</th>
+            <th className="py-3 px-2">Date</th>
+            <th className="py-3 px-2">Status</th>
+            <th className="py-3 px-2">Slip</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+          {orders.map((ord) => (
+            <tr key={ord._id}>
+              <td className="py-3 px-2 font-mono font-bold text-prasatek-primary dark:text-green-400">{ord.orderId}</td>
+              <td className="py-3 px-2 uppercase font-extrabold">{ord.plan} ({ord.billingCycle})</td>
+              <td className="py-3 px-2 font-bold">LKR {ord.amount?.toLocaleString()}</td>
+              <td className="py-3 px-2 text-slate-400">{new Date(ord.createdAt).toLocaleDateString()}</td>
+              <td className="py-3 px-2">
+                {ord.status === 'approved' && (
+                  <span className="bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Approved</span>
+                )}
+                {ord.status === 'pending' && (
+                  <span className="bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Pending</span>
+                )}
+                {ord.status === 'rejected' && (
+                  <span className="bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Rejected</span>
+                )}
+              </td>
+              <td className="py-3 px-2">
+                {ord.receiptUrl ? (
+                  <a href={ord.receiptUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline font-bold text-[11px]">View Slip</a>
+                ) : '-'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
