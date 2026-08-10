@@ -7,6 +7,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 import ProfileSidebar from '../components/ProfileSidebar';
 import NotificationDropdown from '../components/NotificationDropdown';
 import VerificationModal from '../components/VerificationModal';
+import SmsReaderModal from '../components/SmsReaderModal';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle);
 
@@ -40,6 +41,7 @@ export default function Dashboard() {
 
   // Account Modal
   const [showAccModal, setShowAccModal] = useState(false);
+  const [showSmsReaderModal, setShowSmsReaderModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [modalRequiredPlan, setModalRequiredPlan] = useState('');
@@ -792,7 +794,19 @@ export default function Dashboard() {
 
             {/* Add Transaction Form */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800">
-              <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide mb-4">Add Transaction</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Add Transaction</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowSmsReaderModal(true)}
+                  className="px-3 py-1.5 text-xs font-extrabold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-prasatek-primary dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/80 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                  </svg>
+                  <span>Auto-Read SMS</span>
+                </button>
+              </div>
               <form onSubmit={handleAddTxSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase">Select Account</label>
@@ -1527,6 +1541,14 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        <SmsReaderModal 
+          isOpen={showSmsReaderModal} 
+          onClose={() => setShowSmsReaderModal(false)} 
+          accounts={accounts} 
+          onTransactionAdded={fetchData} 
+          triggerAlert={triggerAlert} 
+        />
 
         <ProfileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
