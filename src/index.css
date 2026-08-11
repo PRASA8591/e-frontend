@@ -72,6 +72,8 @@ body {
   background-color: var(--theme-bg);
   color: var(--theme-text);
   transition: background-color 300ms ease, color 300ms ease;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Dynamic theme propagation overrides */

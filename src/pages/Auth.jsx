@@ -4,6 +4,8 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { AlertTriangle, Lock } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 export default function Auth() {
   const { user, login, loginWithGoogle, register, updateMobile } = useAuth();
@@ -39,6 +41,18 @@ export default function Auth() {
       setError('Google login failed. Please try again.');
     }
   });
+
+  const handleGoogleClick = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Browser.open({ url: 'https://cash.prasatek.site/api/auth/google' });
+      } catch (e) {
+        window.open('https://cash.prasatek.site/api/auth/google', '_blank');
+      }
+    } else {
+      handleGoogleLoginCustom();
+    }
+  };
 
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
@@ -157,8 +171,8 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center items-center md:py-6 md:px-4 text-slate-800">
-      <div className="w-full max-w-[1400px] bg-white md:shadow-2xl md:rounded-[2rem] overflow-hidden h-screen md:h-[95vh] relative border border-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen flex flex-col justify-center items-center py-6 px-4 bg-gray-50 text-slate-800">
+      <div className="w-full max-w-[1400px] bg-white md:shadow-2xl md:rounded-[2rem] overflow-y-auto md:overflow-hidden min-h-[85vh] md:h-[95vh] relative border border-gray-100 flex flex-col md:flex-row">
         
         {/* Left branding panel */}
         <div className="hidden md:flex md:w-1/2 bg-prasatek-light flex-col items-center justify-center p-12 border-r border-gray-100">
@@ -291,7 +305,7 @@ export default function Auth() {
                 </div>
 
                 <button
-                  onClick={() => handleGoogleLoginCustom()}
+                  onClick={() => handleGoogleClick()}
                   className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-700 font-bold rounded-xl py-3 flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">

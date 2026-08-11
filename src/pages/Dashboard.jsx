@@ -596,8 +596,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex justify-center items-center md:py-6 md:px-4 text-slate-800 dark:text-slate-200 font-sans antialiased transition-colors duration-300">
-      <div className="w-full max-w-[1400px] bg-white dark:bg-slate-900 md:shadow-2xl md:rounded-[2rem] overflow-hidden h-screen md:h-[95vh] relative border border-gray-100 dark:border-slate-800 flex flex-col">
+    <div className="min-h-screen flex flex-col justify-center items-center py-6 px-4 bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans antialiased transition-colors duration-300">
+      <div className="w-full max-w-[1400px] bg-white dark:bg-slate-900 md:shadow-2xl md:rounded-[2rem] overflow-y-auto md:overflow-hidden min-h-[85vh] md:h-[95vh] relative border border-gray-100 dark:border-slate-800 flex flex-col">
         
         {/* Global Header Alert Banner */}
         {globalBanner && globalBanner.enabled && globalBanner.message && (

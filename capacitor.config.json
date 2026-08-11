@@ -5,5 +5,11 @@
   "server": {
     "hostname": "cash.prasatek.site",
     "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK"
+    }
   }
 }

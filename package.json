@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
+    "@capacitor/browser": "^7.0.5",
     "@capacitor/core": "^7.6.8",
+    "@capacitor/status-bar": "^7.0.6",
     "@react-oauth/google": "^0.13.5",
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.18.1",

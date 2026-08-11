@@ -8,6 +8,8 @@ import { parseSriLankanSms, syncSmsTransactionWithBackend, isNativeAndroid } fro
 export const useSmsReader = (onTransactionAdded) => {
   const [lastParsedSms, setLastParsedSms] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionNoticeMessage, setPermissionNoticeMessage] = useState('');
 
   const handleIncomingSms = useCallback(async (event) => {
     try {
@@ -41,6 +43,17 @@ export const useSmsReader = (onTransactionAdded) => {
     }
   }, [onTransactionAdded]);
 
+  const handlePermissionDenied = useCallback((event) => {
+    const message = event.detail?.message || 'For automatic expense tracking, please go to App Settings > Permissions > SMS and allow access.';
+    setPermissionDenied(true);
+    setPermissionNoticeMessage(message);
+    
+    // Display fallback alert modal to smartphone user
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert(`[SMS Permission Required]\n\n${message}`);
+    }
+  }, []);
+
   useEffect(() => {
     // Only register listener on Native Android platform
     if (!isNativeAndroid()) {
@@ -51,16 +64,20 @@ export const useSmsReader = (onTransactionAdded) => {
 
     // Listen for custom broadcast events dispatched from Android SmsReceiver / MainActivity Java bridge
     window.addEventListener('onSmsReceived', handleIncomingSms);
+    window.addEventListener('onSmsPermissionDenied', handlePermissionDenied);
 
     return () => {
       window.removeEventListener('onSmsReceived', handleIncomingSms);
+      window.removeEventListener('onSmsPermissionDenied', handlePermissionDenied);
       setIsListening(false);
     };
-  }, [handleIncomingSms]);
+  }, [handleIncomingSms, handlePermissionDenied]);
 
   return {
     lastParsedSms,
     isListening,
+    permissionDenied,
+    permissionNoticeMessage,
     parseSmsManually: parseSriLankanSms
   };
 };

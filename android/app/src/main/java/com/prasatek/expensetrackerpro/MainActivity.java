@@ -3,6 +3,7 @@ package com.prasatek.expensetrackerpro;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
@@ -26,6 +27,32 @@ public class MainActivity extends BridgeActivity {
                 Manifest.permission.READ_SMS
             }, SMS_PERMISSION_CODE);
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == SMS_PERMISSION_CODE) {
+            boolean granted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    granted = false;
+                    break;
+                }
+            }
+            if (!granted) {
+                notifyPermissionDenied();
+            }
+        }
+    }
+
+    public void notifyPermissionDenied() {
+        String js = "window.dispatchEvent(new CustomEvent('onSmsPermissionDenied', { detail: { message: 'For automatic expense tracking, please go to App Settings > Permissions > SMS and allow access.' } }));";
+        runOnUiThread(() -> {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().evaluateJavascript(js, null);
+            }
+        });
     }
 
     public void onSmsReceived(String sender, String body) {
