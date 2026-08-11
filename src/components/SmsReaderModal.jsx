@@ -36,6 +36,18 @@ export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTrans
     }
   }, [accounts]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Live Auto-Parse on Text Change
   useEffect(() => {
     if (!smsText.trim()) {

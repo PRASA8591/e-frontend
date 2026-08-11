@@ -45,9 +45,9 @@ export default function Auth() {
   const handleGoogleClick = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
-        await Browser.open({ url: 'https://cash.prasatek.site/api/auth/google' });
+        await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
       } catch (e) {
-        window.open('https://cash.prasatek.site/api/auth/google', '_blank');
+        window.open('https://cash.prasatek.lk/api/auth/google', '_blank');
       }
     } else {
       handleGoogleLoginCustom();

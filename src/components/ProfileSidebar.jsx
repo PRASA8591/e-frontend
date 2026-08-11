@@ -112,7 +112,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
         {/* Links Menu */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1.5 hide-scroll">
           <Link 
-            to="/settings" 
+            to="/settings/profile" 
             onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs transition cursor-pointer"
           >
@@ -121,7 +121,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
           </Link>
 
           <Link 
-            to="/settings" 
+            to="/settings/app" 
             onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs transition cursor-pointer"
           >

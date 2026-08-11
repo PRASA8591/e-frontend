@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { 
@@ -21,12 +21,50 @@ import {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, login, logout } = useAuth(); // login handles updating user, logout clears auth session
+
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [modalRequiredPlan, setModalRequiredPlan] = useState('');
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.pathname.includes('/profile')) return 'profile';
+    if (location.pathname.includes('/app')) return 'app';
+    return 'all';
+  });
+
+  // Scroll to section when route is /settings/profile or /settings/app
+  useEffect(() => {
+    if (location.pathname.includes('/profile') || location.hash === '#profile') {
+      setActiveTab('profile');
+      const el = document.getElementById('profile-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else if (location.pathname.includes('/app') || location.hash === '#app') {
+      setActiveTab('app');
+      const el = document.getElementById('app-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      setActiveTab('all');
+    }
+  }, [location]);
 
   // Danger Zone States (Reset & Delete Account)
   const [showResetModal, setShowResetModal] = useState(false);
   const [resettingAccount, setResettingAccount] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const isSettingsModalOpen = showResetModal || showDeleteModal || showUpgradeModal;
+
+  useEffect(() => {
+    if (isSettingsModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSettingsModalOpen]);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeletePass, setShowDeletePass] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -101,8 +139,6 @@ export default function Settings() {
   const [settingsSuccess, setSettingsSuccess] = useState('');
   const [settingsError, setSettingsError] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [modalRequiredPlan, setModalRequiredPlan] = useState('');
 
   // Handle Photo Change Uploader
   const handlePhotoChange = (e) => {
@@ -224,11 +260,47 @@ export default function Settings() {
             Back to Dashboard
           </button>
           
-          <div className="mt-6">
-            <h1 className="text-3xl font-extrabold tracking-tight">Application Settings</h1>
-            <p className="text-slate-400 mt-1 text-xs sm:text-sm">
-              Manage your personal credentials, customize the theme interface, and select native currency logs.
-            </p>
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight">Application Settings</h1>
+              <p className="text-slate-400 mt-1 text-xs sm:text-sm">
+                Manage your personal credentials, customize the theme interface, and select native currency logs.
+              </p>
+            </div>
+
+            <div className="flex gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60 shrink-0">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('profile'); navigate('/settings/profile'); }}
+                className={`px-3.5 py-2 rounded-xl font-extrabold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'profile' ? 'bg-prasatek-primary text-white shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>My Profile</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('app'); navigate('/settings/app'); }}
+                className={`px-3.5 py-2 rounded-xl font-extrabold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'app' ? 'bg-prasatek-primary text-white shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <SettingsIcon className="w-3.5 h-3.5" />
+                <span>App Settings</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('all'); navigate('/settings'); }}
+                className={`px-3.5 py-2 rounded-xl font-extrabold text-xs transition cursor-pointer ${
+                  activeTab === 'all' ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                All
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -240,7 +312,7 @@ export default function Settings() {
         <div className="lg:col-span-7 space-y-6">
           
           {/* Section 1: Profile Info */}
-          <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <section id="profile-section" className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm scroll-mt-6">
             <div className="flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
               <User className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
               <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">My Personal Profile</h2>
@@ -316,7 +388,7 @@ export default function Settings() {
           </section>
 
           {/* Section 2: App Configurations */}
-          <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <section id="app-section" className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm scroll-mt-6">
             <div className="flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
               <SettingsIcon className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
               <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Application Customization</h2>

@@ -3,7 +3,7 @@
   "appName": "ExpenseTracker Pro",
   "webDir": "dist",
   "server": {
-    "hostname": "cash.prasatek.site",
+    "hostname": "cash.prasatek.lk",
     "androidScheme": "https"
   },
   "plugins": {

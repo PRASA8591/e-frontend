@@ -94,6 +94,30 @@ function AppContent() {
         }
       />
       <Route
+        path="/settings/profile"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/app"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/*"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/subscription"
         element={
           <ProtectedRoute>
