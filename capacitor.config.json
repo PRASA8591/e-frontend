@@ -1,0 +1,9 @@
+{
+  "appId": "com.prasatek.expensetrackerpro",
+  "appName": "ExpenseTracker Pro",
+  "webDir": "dist",
+  "server": {
+    "hostname": "cash.prasatek.site",
+    "androidScheme": "https"
+  }
+}

@@ -13,6 +13,7 @@ import Upgrade from './pages/Upgrade';
 import Usage from './pages/Usage';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
+import { useSmsReader } from './hooks/useSmsReader';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -57,6 +58,8 @@ const AdminRoute = ({ children }) => {
 };
 
 function AppContent() {
+  useSmsReader();
+
   return (
     <Routes>
       <Route path="/" element={<Auth />} />
