@@ -6,6 +6,7 @@ import axios from 'axios';
 import { AlertTriangle, Lock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export default function Auth() {
   const { user, login, loginWithGoogle, register, updateMobile } = useAuth();
@@ -25,6 +26,48 @@ export default function Auth() {
     checkStatus();
   }, []);
 
+  // Initialize Native Google Auth
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        GoogleAuth.initialize({
+          clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true
+        });
+      } catch (err) {
+        console.warn('GoogleAuth init notice:', err);
+      }
+    }
+  }, []);
+
+  // Check URL token parameters on mount (for browser redirect / deep link fallback)
+  useEffect(() => {
+    const checkUrlToken = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+      const token = searchParams.get('token') || hashParams.get('token');
+
+      if (token) {
+        setSubmitting(true);
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
+          const res = await axios.get('/api/auth/me');
+          if (res.data) {
+            login({ ...res.data, token });
+            navigate('/dashboard');
+          }
+        } catch (e) {
+          console.error('Token URL param verification error:', e);
+        } finally {
+          setSubmitting(false);
+        }
+      }
+    };
+    checkUrlToken();
+  }, [login, navigate]);
+
   const handleGoogleLoginCustom = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setError('');
@@ -43,11 +86,36 @@ export default function Auth() {
   });
 
   const handleGoogleClick = async () => {
+    setError('');
     if (Capacitor.isNativePlatform()) {
       try {
-        await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
+        setSubmitting(true);
+        const googleUser = await GoogleAuth.signIn();
+        const credential = googleUser.authentication?.idToken || googleUser.idToken;
+        const accessToken = googleUser.authentication?.accessToken || googleUser.accessToken;
+
+        if (credential || accessToken) {
+          const result = await loginWithGoogle(credential, accessToken);
+          setSubmitting(false);
+          if (!result.success) {
+            setError(result.message || 'Google login failed');
+          } else if (result.requiresVerification) {
+            navigate('/verify-email', { state: { email: result.email, message: result.message } });
+          } else {
+            navigate('/dashboard');
+          }
+        } else {
+          setSubmitting(false);
+          await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
+        }
       } catch (e) {
-        window.open('https://cash.prasatek.lk/api/auth/google', '_blank');
+        console.warn('Native Google Auth notice:', e);
+        setSubmitting(false);
+        try {
+          await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
+        } catch (bErr) {
+          window.location.href = 'https://cash.prasatek.lk/api/auth/google';
+        }
       }
     } else {
       handleGoogleLoginCustom();

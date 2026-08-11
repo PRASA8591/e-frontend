@@ -10,6 +10,11 @@
     "StatusBar": {
       "overlaysWebView": false,
       "style": "DARK"
+    },
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
     }
   }
 }
