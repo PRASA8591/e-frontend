@@ -1,10 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import axios from 'axios';
+import { saveLocalTransaction } from './db';
 
 /**
  * Sri Lankan Financial SMS Parser Engine
  * Handles SMS notifications from Sri Lankan banks and payment gateways:
- * Commercial Bank (COMBANK), Sampath Bank, HNB, BOC, Seylan, NTB, NDB, SDB, eZ Cash, mCash, Koko, etc.
+ * Commercial Bank (COMBANK), Sampath Bank, HNB, BOC, Seylan, NTB, NDB, SDB, eZ Cash, mCash, Dialog, Koko, etc.
  */
 
 export const parseSriLankanSms = (smsText) => {
@@ -15,7 +16,7 @@ export const parseSriLankanSms = (smsText) => {
   const cleanText = smsText.trim();
   const lowerText = cleanText.toLowerCase();
 
-  // 1. Extract Numeric Amount (LKR 1,500.00 / Rs. 1500 / Rs 2500.50 / amt: 500)
+  // 1. Extract Numeric Amount (LKR 1,500.00 / Rs. 1500 / Rs 2500.50 / LKR 500 / amt: 500)
   let amount = 0;
   const amountPatterns = [
     /(?:LKR|RS\.?|USD|EUR|GBP|\$|€|£)\s*([\d,]+(?:\.\d{1,2})?)/i,
@@ -41,16 +42,22 @@ export const parseSriLankanSms = (smsText) => {
   }
 
   // 2. Extract Transaction Type: EXPENSE vs INCOME
+  // EXPENSE keywords: debited, paid, withdrawn, transferred, purchase at, spent, payment of, paid to, purchased
   // INCOME keywords: credited, received, deposited, deposit, salary, refund, cashback, credit to, transfer in, topup success
-  // EXPENSE keywords: debited, paid, withdrawn, transferred to, purchase, spent, payment of, paid to
   let type = 'EXPENSE';
   const creditKeywords = [
     'credited', 'received', 'deposit', 'deposited', 'salary', 'refund', 
     'cashback', 'credit to', 'received from', 'transfer in', 'topup success'
   ];
 
+  const debitKeywords = [
+    'debited', 'paid', 'withdrawn', 'transferred', 'purchase at', 'spent', 'payment of', 'paid to', 'purchased'
+  ];
+
   if (creditKeywords.some(kw => lowerText.includes(kw))) {
     type = 'INCOME';
+  } else if (debitKeywords.some(kw => lowerText.includes(kw))) {
+    type = 'EXPENSE';
   }
 
   // 3. Identify Bank / Payment Gateway Sender
@@ -75,6 +82,8 @@ export const parseSriLankanSms = (smsText) => {
     bankName = 'eZ Cash';
   } else if (lowerText.includes('mcash')) {
     bankName = 'mCash';
+  } else if (lowerText.includes('dialog')) {
+    bankName = 'Dialog';
   } else if (lowerText.includes('koko')) {
     bankName = 'Koko Pay';
   } else if (lowerText.includes('payhere')) {
@@ -86,7 +95,8 @@ export const parseSriLankanSms = (smsText) => {
   const merchantPatterns = [
     /(?:at|to|from|via|merchant:?)\s+([A-Za-z0-9\s&'.-]{2,30}?)(?:\.\s|\son\s|\sfor\s|\sat\s|\sRef|\sAvail|\sBal|\sA\/C|$)/i,
     /spent\s+at\s+([A-Za-z0-9\s&'.-]{2,30}?)(?:\.\s|\son\s|\sRef|$)/i,
-    /paid\s+to\s+([A-Za-z0-9\s&'.-]{2,30}?)(?:\.\s|\son\s|\sRef|$)/i
+    /paid\s+to\s+([A-Za-z0-9\s&'.-]{2,30}?)(?:\.\s|\son\s|\sRef|$)/i,
+    /purchase\s+at\s+([A-Za-z0-9\s&'.-]{2,30}?)(?:\.\s|\son\s|\sRef|$)/i
   ];
 
   for (const pattern of merchantPatterns) {
@@ -108,7 +118,7 @@ export const parseSriLankanSms = (smsText) => {
     category = 'Food & Dining';
   } else if (combo.includes('fuel') || combo.includes('ceypetco') || combo.includes('ioc') || combo.includes('laugfs') || combo.includes('petrol') || combo.includes('uber') || combo.includes('pickme') || combo.includes('cab') || combo.includes('transport')) {
     category = 'Transport';
-  } else if (combo.includes('ceb') || combo.includes('water') || combo.includes('slt') || combo.includes('dialog') || combo.includes('mobitel') || combo.includes('hutch') || combo.includes('electricity') || combo.includes('bill')) {
+  } else if (combo.includes('ceb') || combo.includes('water') || combo.includes('slt') || combo.includes('dialog') || combo.includes('mobitel') || combo.includes('hutch') || combo.includes('utility') || combo.includes('electricity') || combo.includes('bill')) {
     category = 'Bills & Utilities';
   } else if (combo.includes('daraz') || combo.includes('fashion') || combo.includes('nolimit') || combo.includes('odel') || combo.includes('store') || combo.includes('amazon') || combo.includes('shopping')) {
     category = 'Shopping';
@@ -135,14 +145,21 @@ export const parseSriLankanSms = (smsText) => {
 };
 
 /**
- * Sync parsed SMS with backend database
+ * Sync parsed SMS with local Dexie DB and backend database
  */
 export const syncSmsTransactionWithBackend = async (smsText, accountId = null) => {
+  const parsed = parseSriLankanSms(smsText);
+  if (!parsed) return null;
+
+  // 1. Save to local Dexie.js DB
+  await saveLocalTransaction(parsed);
+
+  // 2. Sync to API backend if auth token present
   try {
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('[SMS Engine] No user auth token found, skipping backend sync.');
-      return null;
+      console.warn('[SMS Engine] No user auth token found, stored in Dexie locally.');
+      return parsed;
     }
 
     const response = await axios.post('/api/transactions/parse-sms', {
@@ -154,7 +171,7 @@ export const syncSmsTransactionWithBackend = async (smsText, accountId = null) =
   } catch (error) {
     console.error('[SMS Engine] Failed to sync SMS transaction with backend:', error);
     // Fallback: Return locally parsed structure
-    return parseSriLankanSms(smsText);
+    return parsed;
   }
 };
 
@@ -164,3 +181,4 @@ export const syncSmsTransactionWithBackend = async (smsText, accountId = null) =
 export const isNativeAndroid = () => {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 };
+

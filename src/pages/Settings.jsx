@@ -655,8 +655,8 @@ export default function Settings() {
 
       </main>
       {showUpgradeModal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-gray-100 dark:border-slate-800">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-950/20 mb-4">
               <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -695,8 +695,8 @@ export default function Settings() {
 
       {/* Reset Account Warning Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-amber-100 dark:border-amber-900/30">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-amber-100 dark:border-amber-900/30 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 mb-3">
               <div className="p-2.5 bg-amber-100 dark:bg-amber-950/40 rounded-xl">
                 <AlertTriangle className="w-6 h-6" />
@@ -734,8 +734,8 @@ export default function Settings() {
 
       {/* Delete Account Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-red-100 dark:border-red-900/30">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-md p-6 shadow-2xl border border-red-100 dark:border-red-900/30 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 text-red-600 dark:text-red-500 mb-3">
               <div className="p-2.5 bg-red-100 dark:bg-red-950/40 rounded-xl">
                 <Trash2 className="w-6 h-6" />

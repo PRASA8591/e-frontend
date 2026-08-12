@@ -97,6 +97,19 @@ export default function Upgrade() {
     currency: 'LKR'
   };
 
+  const isAnyModalOpen = tcModalOpen || bankModalOpen;
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAnyModalOpen]);
+
   // Pricing Specifications
   const plans = [
     {
@@ -500,8 +513,8 @@ export default function Upgrade() {
 
       {/* STEP 1: Trilingual Terms & Conditions Agreement Modal */}
       {tcModalOpen && selectedPlanForTc && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
             
             <button 
               onClick={() => setTcModalOpen(false)}
@@ -609,8 +622,8 @@ export default function Upgrade() {
 
       {/* STEP 2: Clean, User-Friendly Bank Account & Deposit Modal */}
       {bankModalOpen && orderData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5">
             
             {/* Close Button */}
             <button 

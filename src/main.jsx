@@ -5,17 +5,17 @@ import axios from 'axios'
 import './index.css'
 import App from './App.jsx'
 
-const RENDER_BACKEND_URL = 'https://backend-xolk.onrender.com';
-let apiBaseUrl = import.meta.env.VITE_API_URL || RENDER_BACKEND_URL;
+const CUSTOM_DOMAIN_URL = 'https://cash.prasatek.lk';
+let apiBaseUrl = import.meta.env.VITE_API_URL || CUSTOM_DOMAIN_URL;
 
 // Ensure no trailing slashes on base URL
 if (apiBaseUrl && apiBaseUrl.endsWith('/')) {
   apiBaseUrl = apiBaseUrl.slice(0, -1);
 }
 
-// In production deployment without explicit VITE_API_URL set, fallback to Render backend
+// In production deployment without explicit VITE_API_URL set, fallback to custom domain
 if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-  apiBaseUrl = RENDER_BACKEND_URL;
+  apiBaseUrl = CUSTOM_DOMAIN_URL;
 }
 
 axios.defaults.baseURL = apiBaseUrl;

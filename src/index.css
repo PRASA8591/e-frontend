@@ -68,8 +68,15 @@
   --color-prasatek-dark: var(--prasatek-dark);
 }
 
-body {
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
   background-color: var(--theme-bg);
+}
+
+body {
   color: var(--theme-text);
   transition: background-color 300ms ease, color 300ms ease;
   padding-top: env(safe-area-inset-top);
