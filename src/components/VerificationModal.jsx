@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 export default function VerificationModal({ isOpen, onClose, email, onSuccess }) {
   const { verifyEmail, resendVerification } = useAuth();
@@ -14,24 +15,14 @@ export default function VerificationModal({ isOpen, onClose, email, onSuccess })
 
   const inputRefs = useRef([]);
 
+  useModalScrollLock(isOpen);
+
   // Auto-send verification code when modal opens
   useEffect(() => {
     if (isOpen && email) {
       handleResendCode(true); // Initial silent trigger or notification
     }
   }, [isOpen, email]);
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -122,8 +113,8 @@ export default function VerificationModal({ isOpen, onClose, email, onSuccess })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-8 text-center flex flex-col items-center relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+      <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl border border-gray-100 dark:border-slate-800 text-center flex flex-col items-center touch-auto">
         
         {/* Close Button */}
         <button

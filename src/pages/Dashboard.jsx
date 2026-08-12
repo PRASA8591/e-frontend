@@ -8,6 +8,7 @@ import ProfileSidebar from '../components/ProfileSidebar';
 import NotificationDropdown from '../components/NotificationDropdown';
 import VerificationModal from '../components/VerificationModal';
 import SmsReaderModal from '../components/SmsReaderModal';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle);
 
@@ -158,16 +159,7 @@ export default function Dashboard() {
 
   const isAnyModalOpen = showAccModal || showConfirm || showAlert || showUpgradeModal || showEditTxModal || showSmsReaderModal || showVerifyModal;
 
-  useEffect(() => {
-    if (isAnyModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isAnyModalOpen]);
+  useModalScrollLock(isAnyModalOpen);
 
   const formatMoney = (amount) => {
     const converted = amount * fxRates[activeCurrency];
@@ -1260,8 +1252,8 @@ export default function Dashboard() {
 
         {/* Add Account Modal */}
         {showAccModal && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-7 shadow-2xl border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+            <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-100 dark:border-slate-800 touch-auto">
               <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mb-1">Add New Account</h3>
               <form onSubmit={handleAddAccountSubmit} className="space-y-4">
                 <div>
@@ -1309,8 +1301,8 @@ export default function Dashboard() {
 
         {/* Global Confirm Modal */}
         {showConfirm && (
-          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+            <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 text-center border border-slate-100 dark:border-slate-800 shadow-2xl touch-auto">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-950/40 mb-4">
                 <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -1338,8 +1330,8 @@ export default function Dashboard() {
 
         {/* Global Alert Modal */}
         {showAlert && (
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+            <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 text-center border border-slate-100 dark:border-slate-800 shadow-2xl touch-auto">
               <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${
                 alertType === 'error' 
                   ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400' 
@@ -1387,8 +1379,8 @@ export default function Dashboard() {
         )}
 
         {showUpgradeModal && (
-          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-150">
-            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl text-center border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+            <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 text-center border border-gray-100 dark:border-slate-800 shadow-2xl touch-auto">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-950/20 mb-4">
                 <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -1439,8 +1431,8 @@ export default function Dashboard() {
 
         {/* Edit Transaction Modal */}
         {showEditTxModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 text-slate-800 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+            <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-gray-100 dark:border-slate-800 text-slate-800 dark:text-slate-100 touch-auto">
               <div className="flex justify-between items-center pb-4 mb-4 border-b border-gray-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 px-2.5 py-1 rounded-md">Enterprise Feature</span>

@@ -1,5 +1,6 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { App as CapApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -59,6 +60,33 @@ const AdminRoute = ({ children }) => {
 
 function AppContent() {
   useSmsReader();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleDeepLink = (data) => {
+      console.log('[DeepLink] Captured incoming URL:', data.url);
+      try {
+        const rawUrl = data.url || '';
+        if (rawUrl.includes('auth-callback') || rawUrl.includes('token=')) {
+          // Format expensetracker://auth-callback?token=XYZ
+          const parsedUrl = new URL(rawUrl.replace('expensetracker://', 'https://cash.prasatek.lk/'));
+          const token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('jwt');
+          if (token) {
+            localStorage.setItem('token', token);
+            window.location.href = '/dashboard';
+          }
+        }
+      } catch (err) {
+        console.error('[DeepLink] Failed to parse URL:', err);
+      }
+    };
+
+    const listener = CapApp.addListener('appUrlOpen', handleDeepLink);
+
+    return () => {
+      listener.then(h => h.remove()).catch(() => {});
+    };
+  }, [navigate]);
 
   return (
     <Routes>

@@ -34,6 +34,7 @@ import {
   Calendar,
   MapPin
 } from 'lucide-react';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -167,6 +168,10 @@ export default function Admin() {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMsg, setAlertMsg] = useState('');
   const [alertType, setAlertType] = useState('info');
+
+  const isModalOpen = showAddUserModal || showPasswordModal || showConfirm || showAlert || !!selectedSlipUrl || !!rejectModalOrder;
+
+  useModalScrollLock(isModalOpen);
 
   const triggerAlert = (title, message, type = 'info') => {
     setAlertTitle(title);
@@ -1696,8 +1701,8 @@ export default function Admin() {
 
       {/* Manual Add User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 text-white shadow-2xl touch-auto">
             <div className="flex justify-between items-center pb-3 mb-4 border-b border-slate-800">
               <h3 className="text-base font-extrabold flex items-center gap-2">
                 <Plus className="w-4 h-4 text-prasatek-primary" />
@@ -1778,8 +1783,8 @@ export default function Admin() {
 
       {/* Manual Password Reset Modal */}
       {showPasswordModal && resetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 text-white shadow-2xl touch-auto">
             <div className="flex justify-between items-center pb-3 mb-4 border-b border-slate-800">
               <h3 className="text-base font-extrabold flex items-center gap-2">
                 <Key className="w-4 h-4 text-purple-400" />
@@ -1828,8 +1833,8 @@ export default function Admin() {
 
       {/* Confirmation Dialog Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white text-center space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-sm overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 text-white text-center space-y-4 shadow-2xl touch-auto">
             <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
             <h3 className="text-lg font-extrabold">{confirmTitle}</h3>
             <p className="text-xs text-slate-400 font-semibold">{confirmMsg}</p>
@@ -1856,8 +1861,8 @@ export default function Admin() {
 
       {/* Alert Banner Modal */}
       {showAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white text-center space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-sm overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 text-white text-center space-y-4 shadow-2xl touch-auto">
             {alertType === 'error' ? (
               <XCircle className="w-12 h-12 text-red-500 mx-auto" />
             ) : alertType === 'success' ? (
@@ -1880,8 +1885,8 @@ export default function Admin() {
 
       {/* Payment Slip Preview Modal */}
       {selectedSlipUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col items-center max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-4xl overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 flex flex-col items-center shadow-2xl touch-auto">
             <button
               onClick={() => setSelectedSlipUrl(null)}
               className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-full transition cursor-pointer"
@@ -1912,8 +1917,8 @@ export default function Admin() {
 
       {/* Reject Payment Reason Modal */}
       {rejectModalOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 p-6 text-white space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4 animate-fade-in">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-md overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-6 text-white space-y-4 shadow-2xl touch-auto">
             <div className="flex items-center gap-3">
               <XCircle className="w-8 h-8 text-red-500 shrink-0" />
               <div>

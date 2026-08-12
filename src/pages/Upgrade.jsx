@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import { 
   ArrowLeft, 
   Check, 
@@ -99,16 +100,7 @@ export default function Upgrade() {
 
   const isAnyModalOpen = tcModalOpen || bankModalOpen;
 
-  useEffect(() => {
-    if (isAnyModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isAnyModalOpen]);
+  useModalScrollLock(isAnyModalOpen);
 
   // Pricing Specifications
   const plans = [
@@ -513,8 +505,8 @@ export default function Upgrade() {
 
       {/* STEP 1: Trilingual Terms & Conditions Agreement Modal */}
       {tcModalOpen && selectedPlanForTc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200 touch-auto">
             
             <button 
               onClick={() => setTcModalOpen(false)}
@@ -622,8 +614,8 @@ export default function Upgrade() {
 
       {/* STEP 2: Clean, User-Friendly Bank Account & Deposit Modal */}
       {bankModalOpen && orderData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
+          <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-lg overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5 touch-auto">
             
             {/* Close Button */}
             <button 
