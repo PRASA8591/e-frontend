@@ -105,7 +105,7 @@ export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTrans
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md touch-none p-4">
-      <div className="modal-content-container relative max-h-[85vh] w-[90%] max-w-xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5 touch-auto">
+      <div className="modal-content-container scrollable-modal-content relative max-h-[85vh] w-[90%] max-w-xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-200 space-y-5 touch-auto">
         
         {/* Close Button */}
         <button 
