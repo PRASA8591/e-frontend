@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { AlertTriangle, Lock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import Footer from '../components/Footer';
 
 export default function Auth() {
   const { user, login, loginWithGoogle, register, updateMobile } = useAuth();
@@ -104,6 +104,17 @@ export default function Auth() {
     if (Capacitor.isNativePlatform()) {
       try {
         setSubmitting(true);
+        // Ensure GoogleAuth is initialized before native sign-in call
+        try {
+          await GoogleAuth.initialize({
+            clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true
+          });
+        } catch (initErr) {
+          console.warn('GoogleAuth re-init notice:', initErr);
+        }
+
         const googleUser = await GoogleAuth.signIn();
         const credential = googleUser.authentication?.idToken || googleUser.idToken;
         const accessToken = googleUser.authentication?.accessToken || googleUser.accessToken;
@@ -112,7 +123,7 @@ export default function Auth() {
           const result = await loginWithGoogle(credential, accessToken);
           setSubmitting(false);
           if (!result.success) {
-            setError(result.message || 'Google login failed');
+            setError(result.message || 'Google authentication failed');
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
           } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
@@ -127,16 +138,12 @@ export default function Auth() {
           }
         } else {
           setSubmitting(false);
-          await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
+          setError('Google authentication did not return valid credentials. Please try again.');
         }
       } catch (e) {
-        console.warn('Native Google Auth notice:', e);
+        console.warn('Native Google Auth error:', e);
         setSubmitting(false);
-        try {
-          await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
-        } catch (bErr) {
-          setError('Google login failed. Please try again.');
-        }
+        setError('Google sign-in notice: ' + (e.message || e.error || 'Please try again.'));
       }
     } else {
       handleGoogleLoginCustom();
@@ -446,27 +453,7 @@ export default function Auth() {
             </div>
           </div>
 
-          <div className="text-center mt-6 space-y-1.5">
-            <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase text-slate-500 tracking-[0.15em]">
-              <Link to="/privacy" className="hover:text-prasatek-primary transition">PRIVACY</Link>
-              <span className="text-slate-300 font-normal">|</span>
-              <Link to="/terms" className="hover:text-prasatek-primary transition">TERMS</Link>
-              <span className="text-slate-300 font-normal">|</span>
-              <Link to="/contact" className="hover:text-prasatek-primary transition">CONTACT</Link>
-            </div>
-            
-            <p className="text-[10px] font-extrabold uppercase text-slate-400 tracking-[0.2em]">
-              A PRODUCT BY PRASATEK SYSTEM SOLUTIONS
-            </p>
-
-            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center justify-center gap-2">
-              <a href="https://www.prasatek.lk" target="_blank" rel="noreferrer" className="hover:text-prasatek-primary transition">WWW.PRASATEK.LK</a>
-              <span className="text-slate-300 font-normal">|</span>
-              <a href="mailto:info@prasatek.lk" className="hover:text-prasatek-primary transition">INFO@PRASATEK.LK</a>
-              <span className="text-slate-300 font-normal">|</span>
-              <a href="tel:0719323239" className="hover:text-prasatek-primary transition">0719323239</a>
-            </p>
-          </div>
+          <Footer />
         </div>
 
       </div>

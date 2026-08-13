@@ -120,6 +120,10 @@ export default function Admin() {
   const [bannerType, setBannerType] = useState('info');
   const [hqAddress, setHqAddress] = useState('Kottawa Road, Colombo District, Sri Lanka');
   const [hqMapUrl, setHqMapUrl] = useState('https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.385418197779!2d79.9610!3d6.8440!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2501a3512e02d%3A0x6b4f738e4a9e5251!2sKottawa%2C%20Pannipitiya!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk');
+  const [companyName, setCompanyName] = useState('PRASATEK SYSTEM SOLUTIONS');
+  const [contactWebsite, setContactWebsite] = useState('www.prasatek.lk');
+  const [contactEmail, setContactEmail] = useState('info@prasatek.lk');
+  const [contactPhone, setContactPhone] = useState('0719323239');
   const [updatingSettings, setUpdatingSettings] = useState(false);
   // Pending Bank Payment Orders State
   const [pendingOrders, setPendingOrders] = useState([]);
@@ -233,6 +237,10 @@ export default function Admin() {
       }
       if (res.data.hqAddress) setHqAddress(res.data.hqAddress);
       if (res.data.hqMapUrl) setHqMapUrl(res.data.hqMapUrl);
+      if (res.data.companyName) setCompanyName(res.data.companyName);
+      if (res.data.contactWebsite) setContactWebsite(res.data.contactWebsite);
+      if (res.data.contactEmail) setContactEmail(res.data.contactEmail);
+      if (res.data.contactPhone) setContactPhone(res.data.contactPhone);
     } catch (err) {
       console.error('Error fetching settings:', err);
     }
@@ -558,7 +566,11 @@ export default function Admin() {
           type: bannerType
         },
         hqAddress,
-        hqMapUrl
+        hqMapUrl,
+        companyName,
+        contactWebsite,
+        contactEmail,
+        contactPhone
       });
       triggerAlert('Settings Saved', 'System operational parameters updated successfully.', 'success');
     } catch (err) {
@@ -1520,6 +1532,50 @@ export default function Admin() {
                   </p>
 
                   <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Company / Developer Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., PRASATEK SYSTEM SOLUTIONS"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Website Domain</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., www.prasatek.lk"
+                          value={contactWebsite}
+                          onChange={(e) => setContactWebsite(e.target.value)}
+                          className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Support Email</label>
+                        <input
+                          type="email"
+                          placeholder="e.g., info@prasatek.lk"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Contact Phone</label>
+                        <input
+                          type="tel"
+                          placeholder="e.g., 0719323239"
+                          value={contactPhone}
+                          onChange={(e) => setContactPhone(e.target.value)}
+                          className="w-full bg-slate-950 text-white text-xs font-bold rounded-xl p-3 border border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary"
+                        />
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Headquarters Physical Address</label>
                       <input

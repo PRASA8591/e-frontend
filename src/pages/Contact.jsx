@@ -15,6 +15,7 @@ import {
   MessageSquare,
   AlertTriangle
 } from 'lucide-react';
+import Footer from '../components/Footer';
 
 export default function Contact() {
   const navigate = useNavigate();
@@ -45,6 +46,10 @@ export default function Contact() {
   // Dynamic System HQ Location States
   const [dynamicHqAddress, setDynamicHqAddress] = useState('');
   const [dynamicHqMapUrl, setDynamicHqMapUrl] = useState('');
+  const [dynamicPhone, setDynamicPhone] = useState('');
+  const [dynamicEmail, setDynamicEmail] = useState('');
+  const [dynamicWebsite, setDynamicWebsite] = useState('');
+  const [dynamicCompanyName, setDynamicCompanyName] = useState('');
 
   useEffect(() => {
     const fetchSystemLocation = async () => {
@@ -52,6 +57,10 @@ export default function Contact() {
         const res = await axios.get('/api/system/status');
         if (res.data.hqAddress) setDynamicHqAddress(res.data.hqAddress);
         if (res.data.hqMapUrl) setDynamicHqMapUrl(res.data.hqMapUrl);
+        if (res.data.contactPhone) setDynamicPhone(res.data.contactPhone);
+        if (res.data.contactEmail) setDynamicEmail(res.data.contactEmail);
+        if (res.data.contactWebsite) setDynamicWebsite(res.data.contactWebsite);
+        if (res.data.companyName) setDynamicCompanyName(res.data.companyName);
       } catch (err) {
         console.error('Failed to fetch system location settings:', err);
       }
@@ -556,29 +565,29 @@ export default function Contact() {
           {/* Contact Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <a 
-              href="tel:0719323239" 
+              href={`tel:${dynamicPhone || '0719323239'}`} 
               className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition group"
             >
               <div className="p-2 bg-green-50 text-prasatek-primary rounded-xl group-hover:scale-110 transition-transform">
                 <Phone className="w-4 h-4" />
               </div>
               <p className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wide mt-2">Phone</p>
-              <p className="font-extrabold text-slate-800 text-xs mt-0.5">0719323239</p>
+              <p className="font-extrabold text-slate-800 text-xs mt-0.5">{dynamicPhone || '0719323239'}</p>
             </a>
 
             <a 
-              href="mailto:info@prasatek.lk" 
+              href={`mailto:${dynamicEmail || 'info@prasatek.lk'}`} 
               className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition group"
             >
               <div className="p-2 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform">
                 <Mail className="w-4 h-4" />
               </div>
               <p className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wide mt-2">Email</p>
-              <p className="font-extrabold text-purple-600 text-xs mt-0.5 hover:underline truncate w-full">info@prasatek.lk</p>
+              <p className="font-extrabold text-purple-600 text-xs mt-0.5 hover:underline truncate w-full">{dynamicEmail || 'info@prasatek.lk'}</p>
             </a>
 
             <a 
-              href="https://www.prasatek.lk" 
+              href={dynamicWebsite ? (dynamicWebsite.startsWith('http') ? dynamicWebsite : `https://${dynamicWebsite}`) : 'https://www.prasatek.lk'} 
               target="_blank" 
               rel="noopener noreferrer" 
               className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition group"
@@ -587,7 +596,7 @@ export default function Contact() {
                 <Globe className="w-4 h-4" />
               </div>
               <p className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wide mt-2">Website</p>
-              <p className="font-extrabold text-blue-600 text-xs mt-0.5 hover:underline truncate w-full">www.prasatek.lk</p>
+              <p className="font-extrabold text-blue-600 text-xs mt-0.5 hover:underline truncate w-full">{dynamicWebsite || 'www.prasatek.lk'}</p>
             </a>
           </div>
 
@@ -664,6 +673,8 @@ export default function Contact() {
               ))}
             </div>
           </div>
+
+          <Footer customSettings={{ companyName: dynamicCompanyName, contactWebsite: dynamicWebsite, contactEmail: dynamicEmail, contactPhone: dynamicPhone }} />
 
         </section>
 
