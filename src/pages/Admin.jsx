@@ -115,18 +115,6 @@ export default function Admin() {
   // System Operational Settings (Maintenance Mode, Global Banner & HQ Map Location)
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  const isAnyModalOpen = showAddUserModal || showPasswordModal || showConfirm || showAlert || selectedSlipUrl || rejectModalOrder;
-
-  useEffect(() => {
-    if (isAnyModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isAnyModalOpen]);
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerEnabled, setBannerEnabled] = useState(false);
   const [bannerType, setBannerType] = useState('info');
