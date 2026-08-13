@@ -60,6 +60,9 @@ export default function ProfileSidebar({ isOpen, onClose }) {
     }
   };
 
+  const userRole = user?.role ? String(user.role).toLowerCase() : '';
+  const isAdminOrManager = userRole === 'admin' || userRole === 'manager' || userRole === 'system_admin' || userRole === 'system-admin';
+
   return (
     <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${
       isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -111,6 +114,16 @@ export default function ProfileSidebar({ isOpen, onClose }) {
 
         {/* Links Menu */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1.5 hide-scroll">
+          {isAdminOrManager && (
+            <Link 
+              to="/admin" 
+              onClick={onClose}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs transition cursor-pointer bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 mb-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-blue-700 dark:text-blue-400 font-extrabold">System Admin Control Panel</span>
+            </Link>
+          )}
           <Link 
             to="/settings/profile" 
             onClick={onClose}

@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -14,7 +16,7 @@ import Upgrade from './pages/Upgrade';
 import Usage from './pages/Usage';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
-import { useSmsReader } from './hooks/useSmsReader';
+import { useSmsReader, initSmsListener } from './hooks/useSmsReader';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -51,7 +53,8 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/" />;
   }
 
-  if (user.role !== 'admin' && user.role !== 'manager') {
+  const role = user.role ? String(user.role).toLowerCase() : '';
+  if (role !== 'admin' && role !== 'manager' && role !== 'system_admin' && role !== 'system-admin') {
     return <Navigate to="/dashboard" />;
   }
 
@@ -60,10 +63,18 @@ const AdminRoute = ({ children }) => {
 
 function AppContent() {
   useSmsReader();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Initialize Native SMS Listener on App Launch
   useEffect(() => {
-    const handleDeepLink = (data) => {
+    if (Capacitor.isNativePlatform()) {
+      initSmsListener();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleDeepLink = async (data) => {
       console.log('[DeepLink] Captured incoming URL:', data.url);
       try {
         const rawUrl = data.url || '';
@@ -73,7 +84,11 @@ function AppContent() {
           const token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('jwt');
           if (token) {
             localStorage.setItem('token', token);
-            window.location.href = '/dashboard';
+            if (Capacitor.isNativePlatform()) {
+              try { await Browser.close(); } catch (e) {}
+            }
+            login({ token });
+            navigate('/dashboard');
           }
         }
       } catch (err) {
@@ -86,7 +101,7 @@ function AppContent() {
     return () => {
       listener.then(h => h.remove()).catch(() => {});
     };
-  }, [navigate]);
+  }, [login, navigate]);
 
   return (
     <Routes>
@@ -107,6 +122,14 @@ function AppContent() {
       />
       <Route
         path="/admin"
+        element={
+          <AdminRoute>
+            <Admin />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/system-admin"
         element={
           <AdminRoute>
             <Admin />

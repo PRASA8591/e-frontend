@@ -264,7 +264,8 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (user?.role === 'admin' || user?.role === 'manager') {
+    const role = user?.role ? String(user.role).toLowerCase() : '';
+    if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
       fetchData();
       fetchHealth();
       fetchSettings();
@@ -579,7 +580,10 @@ export default function Admin() {
     }
   };
 
-  if (user?.role !== 'admin' && user?.role !== 'manager') {
+  const userRole = user?.role ? String(user.role).toLowerCase() : '';
+  const isAdminOrManager = userRole === 'admin' || userRole === 'manager' || userRole === 'system_admin' || userRole === 'system-admin';
+
+  if (!isAdminOrManager) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white text-center font-sans">
         <Lock className="w-16 h-16 text-red-500 mb-4 animate-bounce" />

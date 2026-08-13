@@ -56,7 +56,12 @@ export default function Auth() {
           const res = await axios.get('/api/auth/me');
           if (res.data) {
             login({ ...res.data, token });
-            navigate('/dashboard');
+            const role = res.data.role ? String(res.data.role).toLowerCase() : '';
+            if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
           }
         } catch (e) {
           console.error('Token URL param verification error:', e);
@@ -78,6 +83,13 @@ export default function Auth() {
         setError(result.message);
       } else if (result.requiresVerification) {
         navigate('/verify-email', { state: { email: result.email, message: result.message } });
+      } else {
+        const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+        if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     },
     onError: () => {
@@ -102,7 +114,12 @@ export default function Auth() {
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
           } else {
-            navigate('/dashboard');
+            const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+            if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
           }
         } else {
           setSubmitting(false);
@@ -114,7 +131,7 @@ export default function Auth() {
         try {
           await Browser.open({ url: 'https://cash.prasatek.lk/api/auth/google' });
         } catch (bErr) {
-          window.location.href = 'https://cash.prasatek.lk/api/auth/google';
+          setError('Google login failed. Please try again.');
         }
       }
     } else {
@@ -139,7 +156,8 @@ export default function Auth() {
   // Redirect to dashboard if logged in
   useEffect(() => {
     if (user) {
-      if (user.role === 'admin' || user.role === 'manager') {
+      const role = user.role ? String(user.role).toLowerCase() : '';
+      if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
         navigate('/admin');
       } else if (!user.mobile || user.mobile.trim() === '') {
         setShowMobilePrompt(true);
@@ -164,6 +182,13 @@ export default function Auth() {
         } else {
           setError(result.message);
         }
+      } else {
+        const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+        if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } else {
       if (!name || !mobile) {
@@ -178,7 +203,14 @@ export default function Auth() {
           navigate('/verify-email', { state: { email: result.email || email, message: result.message } });
         } else {
           setSuccess('Registration successful! Redirecting...');
-          setTimeout(() => navigate('/dashboard'), 1500);
+          const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+          setTimeout(() => {
+            if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
+          }, 1000);
         }
       } else {
         setError(result.message);

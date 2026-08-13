@@ -182,3 +182,22 @@ export const isNativeAndroid = () => {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 };
 
+/**
+ * Initialize Native SMS Listener & Broadcast Receiver on App Launch
+ */
+export const initSmsListener = () => {
+  if (!isNativeAndroid()) {
+    console.log('[SMS Engine] Not running on Native Android platform, skipping native SMS listener initialization.');
+    return false;
+  }
+
+  console.log('[SMS Engine] Initializing Native Android SMS BroadcastReceiver...');
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('expense_tracker_sms_listener_init', { 
+      detail: { timestamp: new Date().toISOString() } 
+    }));
+  }
+  return true;
+};
+
+

@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { parseSriLankanSms, syncSmsTransactionWithBackend, isNativeAndroid } from '../services/smsReaderService';
+import { parseSriLankanSms, syncSmsTransactionWithBackend, isNativeAndroid, initSmsListener } from '../services/smsReaderService';
+
+export { initSmsListener };
+
 
 /**
  * Custom React Hook for Automated Bank SMS Reading on Android

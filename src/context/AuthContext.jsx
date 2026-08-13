@@ -74,8 +74,10 @@ export const AuthProvider = ({ children }) => {
       // Direct payload state update from settings/upgrade forms
       const { token: userToken, ...userData } = emailOrUserData;
       if (userToken) setToken(userToken);
-      setUser(userData);
-      return { success: true };
+      if (Object.keys(userData).length > 0) {
+        setUser(userData);
+      }
+      return { success: true, user: userData, token: userToken };
     }
 
     try {
@@ -83,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData, token: userToken };
     } catch (error) {
       if (error.response?.data?.requiresVerification) {
         return {
@@ -114,7 +116,7 @@ export const AuthProvider = ({ children }) => {
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {
         success: false,
