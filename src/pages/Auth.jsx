@@ -83,6 +83,8 @@ export default function Auth() {
         setError(result.message);
       } else if (result.requiresVerification) {
         navigate('/verify-email', { state: { email: result.email, message: result.message } });
+      } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+        setShowMobilePrompt(true);
       } else {
         const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
@@ -113,6 +115,8 @@ export default function Auth() {
             setError(result.message || 'Google login failed');
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
+          } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+            setShowMobilePrompt(true);
           } else {
             const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
@@ -156,13 +160,15 @@ export default function Auth() {
   // Redirect to dashboard if logged in
   useEffect(() => {
     if (user) {
-      const role = user.role ? String(user.role).toLowerCase() : '';
-      if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-        navigate('/admin');
-      } else if (!user.mobile || user.mobile.trim() === '') {
+      if (!user.mobile || user.mobile.trim() === '') {
         setShowMobilePrompt(true);
       } else {
-        navigate('/dashboard');
+        const role = user.role ? String(user.role).toLowerCase() : '';
+        if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     }
   }, [user, navigate]);
@@ -182,6 +188,8 @@ export default function Auth() {
         } else {
           setError(result.message);
         }
+      } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+        setShowMobilePrompt(true);
       } else {
         const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
@@ -226,7 +234,12 @@ export default function Auth() {
     setSubmitting(false);
     if (result.success) {
       setShowMobilePrompt(false);
-      navigate('/dashboard');
+      const role = user?.role ? String(user.role).toLowerCase() : '';
+      if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.message);
     }

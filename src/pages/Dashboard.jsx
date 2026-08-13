@@ -16,9 +16,26 @@ const fxRates = { RS: 1, USD: 0.0033, EUR: 0.0031, GBP: 0.0026, JPY: 0.52, AUD: 
 const fxSymbols = { RS: 'RS ', USD: '$', EUR: '€', GBP: '£', JPY: '¥', AUD: 'A$', CAD: 'C$', CHF: 'CHF ', CNY: '¥', INR: '₹' };
 
 export default function Dashboard() {
-  const { user, logout, updateBudget, login } = useAuth();
+  const { user, logout, updateBudget, login, updateMobile } = useAuth();
   
+  const [dashMobileInput, setDashMobileInput] = useState('');
+  const [submittingDashMobile, setSubmittingDashMobile] = useState(false);
+  const [dashMobileError, setDashMobileError] = useState('');
+
+  const handleDashMobileSubmit = async (e) => {
+    e.preventDefault();
+    if (!dashMobileInput.trim()) return;
+    setSubmittingDashMobile(true);
+    setDashMobileError('');
+    const result = await updateMobile(dashMobileInput.trim());
+    setSubmittingDashMobile(false);
+    if (!result.success) {
+      setDashMobileError(result.message || 'Failed to update mobile number');
+    }
+  };
+
   const [accounts, setAccounts] = useState([]);
+
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1563,6 +1580,47 @@ export default function Dashboard() {
           onTransactionAdded={fetchData} 
           triggerAlert={triggerAlert} 
         />
+
+        {/* Mandatory Mobile Number Entry Modal */}
+        {user && (!user.mobile || user.mobile.trim() === '') && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 touch-none">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-gray-100 dark:border-slate-800 animate-fade-in touch-auto">
+              <div className="w-16 h-16 bg-prasatek-light dark:bg-slate-800 rounded-full flex items-center justify-center text-prasatek-primary dark:text-green-400 mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-2">Mobile Number Required</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+                To keep your account secure and enable automatic transaction SMS tracking, please enter a valid mobile number below.
+              </p>
+              
+              <form onSubmit={handleDashMobileSubmit} className="space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Mobile Number</label>
+                  <input 
+                    type="tel" 
+                    required 
+                    placeholder="071XXXXXXX" 
+                    value={dashMobileInput}
+                    onChange={(e) => setDashMobileInput(e.target.value)}
+                    className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none transition"
+                  />
+                </div>
+                {dashMobileError && (
+                  <p className="text-red-500 text-xs font-medium bg-red-50 dark:bg-red-950/40 p-2.5 rounded-lg border border-red-100 dark:border-red-900/50">{dashMobileError}</p>
+                )}
+                <button 
+                  type="submit" 
+                  disabled={submittingDashMobile}
+                  className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-bold rounded-xl py-3.5 transition flex justify-center items-center shadow-lg cursor-pointer disabled:opacity-50"
+                >
+                  <span>{submittingDashMobile ? 'Saving...' : 'Save & Proceed to Dashboard'}</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         <ProfileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 

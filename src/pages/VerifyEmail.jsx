@@ -22,7 +22,9 @@ export default function VerifyEmail() {
   // Redirect if user is already verified and logged in
   useEffect(() => {
     if (user && user.isVerified) {
-      if (user.role === 'admin' || user.role === 'manager') {
+      if (!user.mobile || user.mobile.trim() === '') {
+        navigate('/login');
+      } else if (user.role === 'admin' || user.role === 'manager' || user.role === 'system_admin' || user.role === 'system-admin') {
         navigate('/admin');
       } else {
         navigate('/dashboard');
@@ -94,8 +96,14 @@ export default function VerifyEmail() {
     if (result.success) {
       setSuccess(result.message || 'Email verified successfully! Redirecting...');
       setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+        if (!user?.mobile || user.mobile.trim() === '') {
+          navigate('/login');
+        } else if (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'system_admin' || user?.role === 'system-admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
+      }, 1200);
     } else {
       setError(result.message);
     }
