@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { AlertTriangle, Lock } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import Footer from '../components/Footer';
@@ -13,6 +13,12 @@ export default function Auth() {
   const navigate = useNavigate();
 
   const [maintenanceActive, setMaintenanceActive] = useState(false);
+
+  const hasMobileNumber = (u) => {
+    if (!u) return false;
+    const mob = u.mobile || u.phone;
+    return typeof mob === 'string' && mob.trim() !== '';
+  };
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -83,10 +89,11 @@ export default function Auth() {
         setError(result.message);
       } else if (result.requiresVerification) {
         navigate('/verify-email', { state: { email: result.email, message: result.message } });
-      } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+      } else if (!hasMobileNumber(result.user)) {
         setShowMobilePrompt(true);
       } else {
-        const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+        const activeUser = result.user || user;
+        const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
           navigate('/admin');
         } else {
@@ -94,16 +101,18 @@ export default function Auth() {
         }
       }
     },
-    onError: () => {
-      setError('Google login failed. Please try again.');
+    onError: (err) => {
+      console.warn('In-App Google authentication notice:', err);
+      setSubmitting(false);
     }
   });
 
   const handleGoogleClick = async () => {
     setError('');
+    setSubmitting(true);
+
     if (Capacitor.isNativePlatform()) {
       try {
-        setSubmitting(true);
         // Ensure GoogleAuth is initialized before native sign-in call
         try {
           await GoogleAuth.initialize({
@@ -126,10 +135,11 @@ export default function Auth() {
             setError(result.message || 'Google authentication failed');
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
-          } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+          } else if (!hasMobileNumber(result.user)) {
             setShowMobilePrompt(true);
           } else {
-            const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+            const activeUser = result.user || user;
+            const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
               navigate('/admin');
             } else {
@@ -137,13 +147,18 @@ export default function Auth() {
             }
           }
         } else {
-          setSubmitting(false);
-          setError('Google authentication did not return valid credentials. Please try again.');
+          // Native sign-in returned no credentials, fallback to custom OAuth silently
+          handleGoogleLoginCustom();
         }
       } catch (e) {
-        console.warn('Native Google Auth error:', e);
-        setSubmitting(false);
-        setError('Google sign-in notice: ' + (e.message || e.error || 'Please try again.'));
+        console.warn('Native Google Auth encountered an issue (SHA-1/client ID mismatch), falling back to In-App OAuth:', e);
+        // Fall back to In-App OAuth token handler without showing red error notice box
+        try {
+          handleGoogleLoginCustom();
+        } catch (fallbackErr) {
+          console.error('Google fallback error:', fallbackErr);
+          setSubmitting(false);
+        }
       }
     } else {
       handleGoogleLoginCustom();
@@ -155,7 +170,6 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -167,7 +181,7 @@ export default function Auth() {
   // Redirect to dashboard if logged in
   useEffect(() => {
     if (user) {
-      if (!user.mobile || user.mobile.trim() === '') {
+      if (!hasMobileNumber(user)) {
         setShowMobilePrompt(true);
       } else {
         const role = user.role ? String(user.role).toLowerCase() : '';
@@ -195,10 +209,11 @@ export default function Auth() {
         } else {
           setError(result.message);
         }
-      } else if (!result.user?.mobile || result.user.mobile.trim() === '') {
+      } else if (!hasMobileNumber(result.user)) {
         setShowMobilePrompt(true);
       } else {
-        const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+        const activeUser = result.user || user;
+        const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
           navigate('/admin');
         } else {
@@ -218,7 +233,8 @@ export default function Auth() {
           navigate('/verify-email', { state: { email: result.email || email, message: result.message } });
         } else {
           setSuccess('Registration successful! Redirecting...');
-          const role = result.user?.role ? String(result.user.role).toLowerCase() : '';
+          const activeUser = result.user || user;
+          const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
           setTimeout(() => {
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
               navigate('/admin');
@@ -237,18 +253,20 @@ export default function Auth() {
     e.preventDefault();
     if (!newMobile.trim()) return;
     setSubmitting(true);
-    const result = await updateMobile(newMobile);
+    setError('');
+    const result = await updateMobile(newMobile.trim());
     setSubmitting(false);
     if (result.success) {
       setShowMobilePrompt(false);
-      const role = user?.role ? String(user.role).toLowerCase() : '';
+      const activeUser = result.user || user;
+      const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
       if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } else {
-      setError(result.message);
+      setError(result.message || 'Failed to update mobile number.');
     }
   };
 
@@ -280,9 +298,16 @@ export default function Auth() {
             <button 
               type="submit" 
               disabled={submitting}
-              className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-bold rounded-xl py-3.5 transition flex justify-center items-center gap-2 shadow-lg mt-4"
+              className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-bold rounded-xl py-3.5 transition flex justify-center items-center gap-2 shadow-lg mt-4 disabled:opacity-50"
             >
-              <span>{submitting ? 'Saving...' : 'Save & Continue'}</span>
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>Save & Continue</span>
+              )}
             </button>
           </form>
         </div>
@@ -412,7 +437,14 @@ export default function Auth() {
                 disabled={submitting}
                 className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold rounded-xl py-3.5 shadow-lg transition duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <span>{submitting ? 'Processing...' : isLoginMode ? 'Sign In' : 'Create Account'}</span>
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>{isLoginMode ? 'Sign In' : 'Create Account'}</span>
+                )}
               </button>
             </form>
 
@@ -426,15 +458,20 @@ export default function Auth() {
 
                 <button
                   onClick={() => handleGoogleClick()}
-                  className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-700 font-bold rounded-xl py-3 flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
+                  disabled={submitting}
+                  className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-700 font-bold rounded-xl py-3 flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-60"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                  <span>Sign in with Google</span>
+                  {submitting ? (
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-prasatek-primary rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                  )}
+                  <span>{submitting ? 'Authenticating...' : 'Sign in with Google'}</span>
                 </button>
               </div>
             )}

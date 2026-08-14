@@ -152,10 +152,12 @@ export default function Dashboard() {
         axios.get('/api/accounts'),
         axios.get('/api/transactions')
       ]);
-      setAccounts(accRes.data);
-      setTransactions(txRes.data);
+      setAccounts(Array.isArray(accRes.data) ? accRes.data : []);
+      setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setAccounts([]);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -179,8 +181,11 @@ export default function Dashboard() {
   useModalScrollLock(isAnyModalOpen);
 
   const formatMoney = (amount) => {
-    const converted = amount * fxRates[activeCurrency];
-    return fxSymbols[activeCurrency] + converted.toFixed(2);
+    const num = Number(amount) || 0;
+    const rate = fxRates[activeCurrency] || 1;
+    const symbol = fxSymbols[activeCurrency] || 'RS ';
+    const converted = num * rate;
+    return symbol + converted.toFixed(2);
   };
 
   const handleCurrencyChange = (e) => {
@@ -391,51 +396,61 @@ export default function Dashboard() {
     return d.getUTCFullYear() + '-W' + (weekNo < 10 ? '0' : '') + weekNo;
   };
 
+  // Safe Array references to avoid null/undefined rendering crashes
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+
   // Calculations
   const currentMonth = new Date().toISOString().slice(0, 7);
   let accountBalances = {};
   let globalTotal = 0;
   let monthlyExpense = 0;
 
-  accounts.forEach(acc => {
-    accountBalances[acc._id] = acc.initialBalance;
+  safeAccounts.forEach(acc => {
+    if (acc && acc._id) {
+      accountBalances[acc._id] = Number(acc.initialBalance) || 0;
+    }
   });
 
-  transactions.forEach(tx => {
-    if (accountBalances[tx.accountId] !== undefined) {
+  safeTransactions.forEach(tx => {
+    if (tx && tx.accountId && accountBalances[tx.accountId] !== undefined) {
+      const amountVal = Number(tx.amount) || 0;
       if (tx.type === 'add') {
-        accountBalances[tx.accountId] += tx.amount;
+        accountBalances[tx.accountId] += amountVal;
       } else {
-        accountBalances[tx.accountId] -= tx.amount;
-        if (tx.date.startsWith(currentMonth) && tx.category !== 'Money Transfer To Me') {
-          monthlyExpense += tx.amount;
+        accountBalances[tx.accountId] -= amountVal;
+        if (tx.date && String(tx.date).startsWith(currentMonth) && tx.category !== 'Money Transfer To Me') {
+          monthlyExpense += amountVal;
         }
       }
     }
   });
 
-  accounts.forEach(acc => {
-    globalTotal += (accountBalances[acc._id] || 0);
+  safeAccounts.forEach(acc => {
+    if (acc && acc._id) {
+      globalTotal += (accountBalances[acc._id] || 0);
+    }
   });
 
-  const spentPct = Math.min((monthlyExpense / budgetLimitBase) * 100, 100);
+  const spentPct = Math.min((monthlyExpense / (budgetLimitBase || 50000)) * 100, 100);
 
   // Set default account when accounts list changes
   useEffect(() => {
-    if (accounts.length > 0 && !txAccountId) {
-      setTxAccountId(accounts[0]._id);
+    if (safeAccounts.length > 0 && !txAccountId) {
+      setTxAccountId(safeAccounts[0]._id);
     }
-  }, [accounts, txAccountId]);
+  }, [safeAccounts, txAccountId]);
 
   // Filters logic
-  const filteredTx = transactions.filter(tx => {
+  const filteredTx = safeTransactions.filter(tx => {
+    if (!tx) return false;
     let match = true;
     if (filterType && tx.type !== filterType) match = false;
     if (filterMonth && tx.month !== filterMonth) match = false;
     if (filterDate && tx.date !== filterDate) match = false;
     if (filterWeek && getISOWeekString(tx.date) !== filterWeek) match = false;
     if (filterAccount && tx.accountId !== filterAccount) match = false;
-    if (searchDesc && !tx.description.toLowerCase().includes(searchDesc.toLowerCase().trim())) match = false;
+    if (searchDesc && (!tx.description || !String(tx.description).toLowerCase().includes(searchDesc.toLowerCase().trim()))) match = false;
     return match;
   });
 
@@ -443,13 +458,14 @@ export default function Dashboard() {
   let filteredExpense = 0;
 
   filteredTx.forEach(tx => {
-    if (tx.type === 'add') filteredIncome += tx.amount;
-    else filteredExpense += tx.amount;
+    const amt = Number(tx.amount) || 0;
+    if (tx.type === 'add') filteredIncome += amt;
+    else filteredExpense += amt;
   });
 
   // Chart data (balances)
-  const chartLabels = accounts.map(acc => acc.name);
-  const chartData = accounts.map(acc => Math.max(0, accountBalances[acc._id] || 0));
+  const chartLabels = safeAccounts.map(acc => acc?.name || 'Account');
+  const chartData = safeAccounts.map(acc => Math.max(0, accountBalances[acc?._id] || 0));
 
   const showChart = chartData.length > 0 && !chartData.every(val => val === 0);
 
@@ -481,10 +497,10 @@ export default function Dashboard() {
 
   // Categories spending sum (Expenses Category chart data)
   const categoryExpenseSums = {};
-  transactions.forEach(tx => {
-    if (tx.type === 'deduct') {
+  safeTransactions.forEach(tx => {
+    if (tx && tx.type === 'deduct') {
       const cat = tx.category || 'Other';
-      categoryExpenseSums[cat] = (categoryExpenseSums[cat] || 0) + tx.amount;
+      categoryExpenseSums[cat] = (categoryExpenseSums[cat] || 0) + (Number(tx.amount) || 0);
     }
   });
   const catLabels = Object.keys(categoryExpenseSums);
@@ -524,16 +540,20 @@ export default function Dashboard() {
   const monthlyIncome = Array(6).fill(0);
   const monthlyExpenseData = Array(6).fill(0);
 
-  transactions.forEach(tx => {
+  safeTransactions.forEach(tx => {
+    if (!tx) return;
     const idx = last6Months.indexOf(tx.month);
     if (idx !== -1) {
+      const amt = Number(tx.amount) || 0;
       if (tx.type === 'add') {
-        monthlyIncome[idx] += tx.amount;
+        monthlyIncome[idx] += amt;
       } else {
-        monthlyExpenseData[idx] += tx.amount;
+        monthlyExpenseData[idx] += amt;
       }
     }
   });
+
+  const activeRate = fxRates[activeCurrency] || 1;
 
   const trendsChartData = {
     labels: last6Months.map(m => {
@@ -544,13 +564,13 @@ export default function Dashboard() {
     datasets: [
       {
         label: 'Income',
-        data: monthlyIncome.map(val => val * fxRates[activeCurrency]),
+        data: monthlyIncome.map(val => val * activeRate),
         backgroundColor: '#0b8c5a',
         borderRadius: 4
       },
       {
         label: 'Expenses',
-        data: monthlyExpenseData.map(val => val * fxRates[activeCurrency]),
+        data: monthlyExpenseData.map(val => val * activeRate),
         backgroundColor: '#ef4444',
         borderRadius: 4
       }
@@ -1582,7 +1602,7 @@ export default function Dashboard() {
         />
 
         {/* Mandatory Mobile Number Entry Modal */}
-        {user && (!user.mobile || user.mobile.trim() === '') && (
+        {user && (!user.mobile || typeof user.mobile !== 'string' || user.mobile.trim() === '') && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 touch-none">
             <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-gray-100 dark:border-slate-800 animate-fade-in touch-auto">
               <div className="w-16 h-16 bg-prasatek-light dark:bg-slate-800 rounded-full flex items-center justify-center text-prasatek-primary dark:text-green-400 mx-auto mb-4">

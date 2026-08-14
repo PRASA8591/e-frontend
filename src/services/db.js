@@ -7,8 +7,16 @@ db.version(1).stores({
   accounts: '++id, _id, name, type, balance'
 });
 
+// Safe non-blocking initialization of IndexedDB
+db.open().catch(err => {
+  console.warn('[Dexie DB] Non-blocking IndexedDB open notice:', err?.message || err);
+});
+
 export const saveLocalTransaction = async (txData) => {
   try {
+    if (!db.isOpen()) {
+      try { await db.open(); } catch (e) {}
+    }
     const record = {
       ...txData,
       createdAt: txData.createdAt || new Date().toISOString()
@@ -16,16 +24,19 @@ export const saveLocalTransaction = async (txData) => {
     const id = await db.transactions.add(record);
     return { ...record, localId: id };
   } catch (err) {
-    console.error('[Dexie DB] Error saving local transaction:', err);
+    console.warn('[Dexie DB] Error saving local transaction:', err?.message || err);
     return txData;
   }
 };
 
 export const getLocalTransactions = async () => {
   try {
+    if (!db.isOpen()) {
+      try { await db.open(); } catch (e) {}
+    }
     return await db.transactions.toArray();
   } catch (err) {
-    console.error('[Dexie DB] Error fetching local transactions:', err);
+    console.warn('[Dexie DB] Error fetching local transactions:', err?.message || err);
     return [];
   }
 };

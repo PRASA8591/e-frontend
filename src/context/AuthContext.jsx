@@ -4,9 +4,36 @@ import axios from 'axios';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('user');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+
+  // Helper to safely update user state & sync with LocalStorage
+  const updateUserState = (newUserData) => {
+    setUser(prev => {
+      if (!newUserData) {
+        try { localStorage.removeItem('user'); } catch (e) {}
+        return null;
+      }
+      const updated = typeof newUserData === 'function' 
+        ? newUserData(prev) 
+        : { ...(prev || {}), ...newUserData };
+      try {
+        localStorage.setItem('user', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save user to localStorage:', e);
+      }
+      return updated;
+    });
+  };
 
   // Configure axios to send Bearer token automatically if it exists
   useEffect(() => {
@@ -16,6 +43,7 @@ export const AuthProvider = ({ children }) => {
     } else {
       delete axios.defaults.headers.common['Authorization'];
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
   }, [token]);
 
@@ -25,7 +53,9 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           const res = await axios.get('/api/auth/me');
-          setUser(res.data);
+          if (res.data) {
+            updateUserState(res.data);
+          }
         } catch (error) {
           console.error('Failed to fetch user:', error);
           // Token might have expired or user suspended
@@ -75,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       const { token: userToken, ...userData } = emailOrUserData;
       if (userToken) setToken(userToken);
       if (Object.keys(userData).length > 0) {
-        setUser(userData);
+        updateUserState(userData);
       }
       return { success: true, user: userData, token: userToken };
     }
@@ -84,7 +114,7 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.post('/api/auth/login', { email: emailOrUserData, password });
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
-      setUser(userData);
+      updateUserState(userData);
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       if (error.response?.data?.requiresVerification) {
@@ -115,7 +145,7 @@ export const AuthProvider = ({ children }) => {
       }
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
-      setUser(userData);
+      updateUserState(userData);
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {
@@ -138,8 +168,8 @@ export const AuthProvider = ({ children }) => {
       }
       const { token: userToken, ...userData } = res.data;
       setToken(userToken);
-      setUser(userData);
-      return { success: true };
+      updateUserState(userData);
+      return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {
         success: false,
@@ -153,8 +183,8 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.post('/api/auth/verify', { email, code });
       const { token: userToken, message, ...userData } = res.data;
       if (userToken) setToken(userToken);
-      if (userData && Object.keys(userData).length > 0) setUser(userData);
-      return { success: true, message: message || 'Email verified successfully!' };
+      if (userData && Object.keys(userData).length > 0) updateUserState(userData);
+      return { success: true, message: message || 'Email verified successfully!', user: userData };
     } catch (error) {
       return {
         success: false,
@@ -178,13 +208,18 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setToken(null);
     setUser(null);
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch (e) {}
   };
 
   const updateMobile = async (mobile) => {
     try {
       const res = await axios.put('/api/auth/mobile', { mobile });
-      setUser(prev => ({ ...prev, mobile: res.data.mobile }));
-      return { success: true };
+      const updatedUser = res.data;
+      updateUserState(prev => ({ ...(prev || {}), ...updatedUser }));
+      return { success: true, user: updatedUser };
     } catch (error) {
       return {
         success: false,
@@ -196,8 +231,9 @@ export const AuthProvider = ({ children }) => {
   const updateBudget = async (monthlyBudgetLimit) => {
     try {
       const res = await axios.put('/api/auth/budget', { monthlyBudgetLimit });
-      setUser(prev => ({ ...prev, monthlyBudgetLimit: res.data.monthlyBudgetLimit }));
-      return { success: true };
+      const updatedUser = res.data;
+      updateUserState(prev => ({ ...(prev || {}), ...updatedUser }));
+      return { success: true, user: updatedUser };
     } catch (error) {
       return {
         success: false,
@@ -211,7 +247,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.put(`/api/admin/users/${userId}/org`, { org });
       if (user && user._id === userId) {
-        setUser(prev => ({ ...prev, org: res.data.org }));
+        updateUserState(prev => ({ ...(prev || {}), org: res.data.org }));
       }
       return { success: true };
     } catch (error) {
