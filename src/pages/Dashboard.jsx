@@ -18,6 +18,16 @@ const fxSymbols = { RS: 'RS ', USD: '$', EUR: '€', GBP: '£', JPY: '¥', AUD: 
 export default function Dashboard() {
   const { user, logout, updateBudget, login, updateMobile } = useAuth();
   
+  const hasUserPhone = (u) => {
+    if (!u) return true; // Don't pop up modal if user object is not yet loaded
+    const mob = u.mobile || u.phone || u.phoneNumber || u.mobileNumber || u.phone_number || u.tel;
+    if (mob !== undefined && mob !== null) {
+      const str = String(mob).trim();
+      return str !== '' && str !== 'null' && str !== 'undefined';
+    }
+    return false;
+  };
+
   const [dashMobileInput, setDashMobileInput] = useState('');
   const [submittingDashMobile, setSubmittingDashMobile] = useState(false);
   const [dashMobileError, setDashMobileError] = useState('');
@@ -35,9 +45,12 @@ export default function Dashboard() {
   };
 
   const [accounts, setAccounts] = useState([]);
-
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Safe Array references to avoid null/undefined rendering crashes
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
   // Profile sidebar & Custom categories state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -209,28 +222,28 @@ export default function Dashboard() {
       setShowUpgradeModal(true);
       return;
     }
-    if (transactions.length === 0 && accounts.length === 0) {
+    if (safeTransactions.length === 0 && safeAccounts.length === 0) {
       triggerAlert('Export Notice', 'No data available to back up.', 'info');
       return;
     }
     const backupPayload = {
       exportedAt: new Date().toISOString(),
       user: {
-        name: user.name,
-        email: user.email,
-        plan: user.plan
+        name: user?.name || '',
+        email: user?.email || '',
+        plan: user?.plan || 'free'
       },
-      accounts: accounts.map(a => ({ name: a.name, initialBalance: a.initialBalance })),
-      transactions: transactions.map(t => {
-        const acc = accounts.find(a => a._id === t.accountId);
+      accounts: safeAccounts.map(a => ({ name: a?.name || '', initialBalance: a?.initialBalance || 0 })),
+      transactions: safeTransactions.map(t => {
+        const acc = safeAccounts.find(a => a && a._id === t?.accountId);
         return {
           accountName: acc ? acc.name : 'Unknown Account',
-          date: t.date,
-          month: t.month,
-          type: t.type,
-          category: t.category,
-          description: t.description,
-          amount: t.amount
+          date: t?.date,
+          month: t?.month,
+          type: t?.type,
+          category: t?.category,
+          description: t?.description,
+          amount: t?.amount
         };
       })
     };
@@ -246,7 +259,7 @@ export default function Dashboard() {
   };
 
   const handleAddAccountClick = () => {
-    if (user?.plan === 'free' && accounts.length >= 1) {
+    if (user?.plan === 'free' && safeAccounts.length >= 1) {
       setShowUpgradeModal(true);
       return;
     }
@@ -395,10 +408,6 @@ export default function Dashboard() {
     const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return d.getUTCFullYear() + '-W' + (weekNo < 10 ? '0' : '') + weekNo;
   };
-
-  // Safe Array references to avoid null/undefined rendering crashes
-  const safeAccounts = Array.isArray(accounts) ? accounts : [];
-  const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
   // Calculations
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -601,7 +610,7 @@ export default function Dashboard() {
       triggerAlert('Premium Feature', 'Excel/CSV export is a Pro/Enterprise feature. Please upgrade your plan to unlock this.', 'info');
       return;
     }
-    if (transactions.length === 0) {
+    if (safeTransactions.length === 0) {
       triggerAlert('Export Notice', 'No data available to export.', 'info');
       return;
     }
@@ -613,11 +622,14 @@ export default function Dashboard() {
     }
 
     filteredTx.forEach(tx => {
-      const accRef = accounts.find(a => a._id === tx.accountId);
+      if (!tx) return;
+      const accRef = safeAccounts.find(a => a && a._id === tx.accountId);
       const accName = accRef ? accRef.name : 'Unknown Account';
       const typeStr = tx.type === 'add' ? 'Income' : 'Expense';
       const catStr = tx.category || 'N/A';
-      csvContent += `${tx.date},${tx.month},"${accName}",${typeStr},${catStr},"${tx.description.replace(/"/g, '""')}",${tx.amount.toFixed(2)}\n`;
+      const descStr = (tx.description || '').replace(/"/g, '""');
+      const amtVal = (Number(tx.amount) || 0).toFixed(2);
+      csvContent += `${tx.date || ''},${tx.month || ''},"${accName}",${typeStr},${catStr},"${descStr}",${amtVal}\n`;
     });
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -867,10 +879,10 @@ export default function Dashboard() {
                     required 
                     className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-prasatek-primary outline-none appearance-none cursor-pointer"
                   >
-                    {accounts.length === 0 ? (
+                    {safeAccounts.length === 0 ? (
                       <option value="">-- Create an account first --</option>
                     ) : (
-                      accounts.map(acc => (
+                      safeAccounts.map(acc => (
                         <option key={acc._id} value={acc._id}>
                           {acc.name} (Bal: {formatMoney(accountBalances[acc._id] || 0)})
                         </option>
@@ -1010,7 +1022,7 @@ export default function Dashboard() {
                       <p className="text-sm font-extrabold mt-1 truncate">Overview</p>
                     </div>
 
-                    {accounts.map(acc => {
+                    {safeAccounts.map(acc => {
                       const currentBal = accountBalances[acc._id] || 0;
                       const isSelected = filterAccount === acc._id;
                       return (
@@ -1174,7 +1186,7 @@ export default function Dashboard() {
                     className="w-full bg-prasatek-light dark:bg-slate-800 px-2 py-2 border-none rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none cursor-pointer"
                   >
                     <option value="">All Accounts</option>
-                    {accounts.map(acc => (
+                    {safeAccounts.map(acc => (
                       <option key={acc._id} value={acc._id}>{acc.name}</option>
                     ))}
                   </select>
@@ -1206,24 +1218,24 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3 mb-4 border-t border-gray-100 dark:border-slate-800 pt-3 shrink-0">
                   <div className="bg-green-50/50 dark:bg-green-950/10 p-2.5 rounded-xl border border-green-100/50 dark:border-green-900/30 text-center">
                     <p className="text-[9px] font-extrabold text-green-600 dark:text-green-400 uppercase tracking-wider truncate">
-                      {filterAccount ? `${accounts.find(a => a._id === filterAccount)?.name || 'Account'} Income` : 'All Accounts Income'}
+                      {filterAccount ? `${safeAccounts.find(a => a._id === filterAccount)?.name || 'Account'} Income` : 'All Accounts Income'}
                     </p>
                     <p className="text-base font-extrabold text-green-700 dark:text-green-300 mt-0.5">{formatMoney(filteredIncome)}</p>
                   </div>
                   <div className="bg-red-50/50 dark:bg-red-950/10 p-2.5 rounded-xl border border-red-100/50 dark:border-red-900/30 text-center">
                     <p className="text-[9px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider truncate">
-                      {filterAccount ? `${accounts.find(a => a._id === filterAccount)?.name || 'Account'} Expense` : 'All Accounts Expense'}
+                      {filterAccount ? `${safeAccounts.find(a => a._id === filterAccount)?.name || 'Account'} Expense` : 'All Accounts Expense'}
                     </p>
                     <p className="text-base font-extrabold text-red-700 dark:text-red-300 mt-0.5">{formatMoney(filteredExpense)}</p>
                   </div>
                 </div>
 
                 <ul className="flex-1 overflow-y-auto hide-scroll space-y-3 pr-1 pb-4">
-                  {filteredTx.length === 0 ? (
+                  {(Array.isArray(filteredTx) ? filteredTx : []).length === 0 ? (
                     <li className="text-center text-gray-400 dark:text-slate-500 font-bold py-6 text-xs uppercase tracking-widest">No Records Found</li>
                   ) : (
-                    filteredTx.map(tx => {
-                      const accRef = accounts.find(a => a._id === tx.accountId);
+                    (Array.isArray(filteredTx) ? filteredTx : []).map(tx => {
+                      const accRef = safeAccounts.find(a => a && a._id === tx.accountId);
                       const isInc = tx.type === 'add';
                       return (
                         <li key={tx._id} className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-50 dark:border-slate-800">
@@ -1492,7 +1504,7 @@ export default function Dashboard() {
                     className="w-full bg-prasatek-light dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl px-4 py-3 border-none outline-none cursor-pointer"
                     required
                   >
-                    {accounts.map(acc => (
+                    {safeAccounts.map(acc => (
                       <option key={acc._id} value={acc._id}>{acc.name}</option>
                     ))}
                   </select>
@@ -1596,13 +1608,13 @@ export default function Dashboard() {
         <SmsReaderModal 
           isOpen={showSmsReaderModal} 
           onClose={() => setShowSmsReaderModal(false)} 
-          accounts={accounts} 
+          accounts={safeAccounts} 
           onTransactionAdded={fetchData} 
           triggerAlert={triggerAlert} 
         />
 
-        {/* Mandatory Mobile Number Entry Modal */}
-        {user && (!user.mobile || typeof user.mobile !== 'string' || user.mobile.trim() === '') && (
+        {/* Mandatory Mobile Number Entry Modal (Only shown if phone/mobile is genuinely missing) */}
+        {user && !hasUserPhone(user) && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 touch-none">
             <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-gray-100 dark:border-slate-800 animate-fade-in touch-auto">
               <div className="w-16 h-16 bg-prasatek-light dark:bg-slate-800 rounded-full flex items-center justify-center text-prasatek-primary dark:text-green-400 mx-auto mb-4">

@@ -144,8 +144,16 @@ export const AuthProvider = ({ children }) => {
         };
       }
       const { token: userToken, ...userData } = res.data;
-      setToken(userToken);
-      updateUserState(userData);
+      if (userToken) {
+        setToken(userToken);
+        try {
+          localStorage.setItem('token', userToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+        } catch (e) {}
+      }
+      if (userData && Object.keys(userData).length > 0) {
+        updateUserState(userData);
+      }
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {

@@ -10,9 +10,11 @@ export default function NotificationDropdown() {
   const fetchNotifications = async () => {
     try {
       const res = await axios.get('/api/notifications');
-      setNotifications(res.data);
+      const data = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.notifications) ? res.data.notifications : []);
+      setNotifications(data);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      setNotifications([]);
     }
   };
 
@@ -34,12 +36,13 @@ export default function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isOpen]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+  const unreadCount = safeNotifications.filter(n => n && !n.read).length;
 
   const handleMarkAsRead = async (id) => {
     try {
       await axios.put(`/api/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
+      setNotifications(prev => (Array.isArray(prev) ? prev : []).map(n => n && n._id === id ? { ...n, read: true } : n));
     } catch (err) {
       console.error('Error reading notification:', err);
     }
@@ -48,7 +51,7 @@ export default function NotificationDropdown() {
   const handleMarkAllRead = async () => {
     try {
       await axios.put('/api/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => (Array.isArray(prev) ? prev : []).map(n => n ? { ...n, read: true } : n));
     } catch (err) {
       console.error('Error reading all notifications:', err);
     }
@@ -98,14 +101,14 @@ export default function NotificationDropdown() {
 
           {/* List */}
           <div className="flex-1 overflow-y-auto hide-scroll p-2 space-y-1.5">
-            {notifications.length === 0 ? (
+            {safeNotifications.length === 0 ? (
               <div className="text-center py-10 text-slate-400">
                 <Bell className="w-10 h-10 mx-auto mb-2 opacity-35" />
                 <p className="font-bold text-xs uppercase tracking-wide">Clean Inbox</p>
                 <p className="text-[10px] text-slate-400 mt-1">No alerts or announcements.</p>
               </div>
             ) : (
-              notifications.map(notif => (
+              safeNotifications.map(notif => notif && (
                 <div 
                   key={notif._id}
                   onClick={() => !notif.read && handleMarkAsRead(notif._id)}

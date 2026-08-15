@@ -24,9 +24,10 @@ export default function Subscription() {
     const fetchAccountsCount = async () => {
       try {
         const res = await axios.get('/api/accounts');
-        setAccountCount(res.data.length);
+        setAccountCount(Array.isArray(res.data) ? res.data.length : 0);
       } catch (err) {
         console.error('Error fetching accounts count:', err);
+        setAccountCount(0);
       } finally {
         setLoading(false);
       }
@@ -229,9 +230,10 @@ function PaymentOrdersTable() {
     const fetchOrders = async () => {
       try {
         const res = await axios.get('/api/payments/my-orders');
-        setOrders(res.data);
+        setOrders(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error('Failed to fetch payment orders:', err);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -239,11 +241,13 @@ function PaymentOrdersTable() {
     fetchOrders();
   }, []);
 
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
   if (loading) {
     return <p className="text-xs text-slate-400 font-bold py-4">Loading payment order history...</p>;
   }
 
-  if (orders.length === 0) {
+  if (safeOrders.length === 0) {
     return <p className="text-xs text-slate-400 font-semibold py-4">No bank payment orders submitted yet.</p>;
   }
 
@@ -261,7 +265,7 @@ function PaymentOrdersTable() {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-          {orders.map((ord) => (
+          {safeOrders.map((ord) => (
             <tr key={ord._id}>
               <td className="py-3 px-2 font-mono font-bold text-prasatek-primary dark:text-green-400">{ord.orderId}</td>
               <td className="py-3 px-2 uppercase font-extrabold">{ord.plan} ({ord.billingCycle})</td>

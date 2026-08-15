@@ -943,9 +943,10 @@ function ActiveSessionsSection() {
   const fetchSessions = async () => {
     try {
       const res = await axios.get('/api/auth/sessions');
-      setSessions(res.data);
+      setSessions(Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.sessions) ? res.data.sessions : []));
     } catch (err) {
       console.error('Fetch sessions error:', err);
+      setSessions([]);
     } finally {
       setLoading(false);
     }
@@ -958,11 +959,13 @@ function ActiveSessionsSection() {
   const handleRevokeSession = async (sessionId) => {
     try {
       const res = await axios.delete(`/api/auth/sessions/${sessionId}`);
-      setSessions(res.data.sessions);
+      setSessions(Array.isArray(res.data?.sessions) ? res.data.sessions : (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       console.error('Revoke session error:', err);
     }
   };
+
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
 
   return (
     <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
@@ -971,12 +974,12 @@ function ActiveSessionsSection() {
           <User className="w-5 h-5 text-prasatek-primary dark:text-green-500" />
           <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Active Login Devices & Sessions</h2>
         </div>
-        <span className="text-[10px] font-bold text-slate-400">{sessions.length} Active Sessions</span>
+        <span className="text-[10px] font-bold text-slate-400">{safeSessions.length} Active Sessions</span>
       </div>
 
       {loading ? (
         <p className="text-xs text-slate-400 font-semibold py-2">Loading active sessions...</p>
-      ) : sessions.length === 0 ? (
+      ) : safeSessions.length === 0 ? (
         <p className="text-xs text-slate-400 font-semibold py-2">No other active device sessions found.</p>
       ) : (
         <div className="overflow-x-auto">
@@ -990,14 +993,14 @@ function ActiveSessionsSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {sessions.map((sess, idx) => (
-                <tr key={sess.sessionId || idx}>
-                  <td className="py-3 px-2 font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">{sess.device || 'Browser Session'}</td>
-                  <td className="py-3 px-2 font-mono text-slate-500">{sess.ip || '127.0.0.1'}</td>
-                  <td className="py-3 px-2 text-slate-400">{new Date(sess.createdAt || Date.now()).toLocaleDateString()}</td>
+              {safeSessions.map((sess, idx) => (
+                <tr key={sess?.sessionId || idx}>
+                  <td className="py-3 px-2 font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">{sess?.device || 'Browser Session'}</td>
+                  <td className="py-3 px-2 font-mono text-slate-500">{sess?.ip || '127.0.0.1'}</td>
+                  <td className="py-3 px-2 text-slate-400">{new Date(sess?.createdAt || Date.now()).toLocaleDateString()}</td>
                   <td className="py-3 px-2 text-right">
                     <button
-                      onClick={() => handleRevokeSession(sess.sessionId || sess._id)}
+                      onClick={() => handleRevokeSession(sess?.sessionId || sess?._id)}
                       className="px-2.5 py-1 text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
                     >
                       Revoke Session
@@ -1039,17 +1042,19 @@ function SmsSyncSection({ user, login }) {
     }
   };
 
+  const safeSenders = Array.isArray(senders) ? senders : [];
+
   const handleAddSender = (e) => {
     e.preventDefault();
     if (!newSender.trim()) return;
-    const updated = [...new Set([...senders, newSender.trim().toUpperCase()])];
+    const updated = [...new Set([...safeSenders, newSender.trim().toUpperCase()])];
     setSenders(updated);
     setNewSender('');
     handleSaveSmsSettings(smsSyncEnabled, updated);
   };
 
   const handleRemoveSender = (senderToRemove) => {
-    const updated = senders.filter(s => s !== senderToRemove);
+    const updated = safeSenders.filter(s => s !== senderToRemove);
     setSenders(updated);
     handleSaveSmsSettings(smsSyncEnabled, updated);
   };
@@ -1075,7 +1080,7 @@ function SmsSyncSection({ user, login }) {
           checked={smsSyncEnabled}
           onChange={(e) => {
             setSmsSyncEnabled(e.target.checked);
-            handleSaveSmsSettings(e.target.checked, senders);
+            handleSaveSmsSettings(e.target.checked, safeSenders);
           }}
           className="w-5 h-5 accent-prasatek-primary cursor-pointer"
         />
@@ -1086,7 +1091,7 @@ function SmsSyncSection({ user, login }) {
           Linked Bank SMS Sender IDs
         </label>
         <div className="flex flex-wrap gap-2 mb-3">
-          {senders.map((snd, idx) => (
+          {safeSenders.map((snd, idx) => (
             <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
               {snd}
               <button onClick={() => handleRemoveSender(snd)} className="text-slate-400 hover:text-red-500 cursor-pointer">✕</button>

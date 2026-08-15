@@ -16,8 +16,10 @@ export default function Auth() {
 
   const hasMobileNumber = (u) => {
     if (!u) return false;
-    const mob = u.mobile || u.phone;
-    return typeof mob === 'string' && mob.trim() !== '';
+    const phoneVal = u.phone || u.mobile || u.phoneNumber || u.mobileNumber || u.phone_number || u.tel;
+    if (phoneVal === undefined || phoneVal === null) return false;
+    const str = String(phoneVal).trim();
+    return str !== '' && str !== 'null' && str !== 'undefined';
   };
 
   useEffect(() => {
@@ -64,9 +66,9 @@ export default function Auth() {
             login({ ...res.data, token });
             const role = res.data.role ? String(res.data.role).toLowerCase() : '';
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-              navigate('/admin');
+              navigate('/admin', { replace: true });
             } else {
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
             }
           }
         } catch (e) {
@@ -83,26 +85,40 @@ export default function Auth() {
     onSuccess: async (tokenResponse) => {
       setError('');
       setSubmitting(true);
-      const result = await loginWithGoogle(null, tokenResponse.access_token);
-      setSubmitting(false);
-      if (!result.success) {
-        setError(result.message);
-      } else if (result.requiresVerification) {
-        navigate('/verify-email', { state: { email: result.email, message: result.message } });
-      } else if (!hasMobileNumber(result.user)) {
-        setShowMobilePrompt(true);
-      } else {
-        const activeUser = result.user || user;
-        const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
-        if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-          navigate('/admin');
+      try {
+        const result = await loginWithGoogle(null, tokenResponse.access_token);
+        if (!result || !result.success) {
+          setError(result?.message || 'Google verification failed.');
+        } else if (result.requiresVerification) {
+          navigate('/verify-email', { state: { email: result.email, message: result.message } });
+        } else if (!hasMobileNumber(result.user)) {
+          setShowMobilePrompt(true);
         } else {
-          navigate('/dashboard');
+          setShowMobilePrompt(false);
+          const activeUser = result.user || user;
+          const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
+          if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
         }
+      } catch (authErr) {
+        console.error('Google login processing error:', authErr);
+        setError(authErr.response?.data?.message || authErr.message || 'Google authentication encountered an error.');
+      } finally {
+        setSubmitting(false);
       }
     },
     onError: (err) => {
-      console.warn('In-App Google authentication notice:', err);
+      console.warn('In-App Google authentication error:', err);
+      setSubmitting(false);
+      if (err?.error && err.error !== 'popup_closed_by_user') {
+        setError(`Google sign-in error: ${err.error_description || err.error}`);
+      }
+    },
+    onNonOAuthError: (err) => {
+      console.warn('Google non-OAuth error:', err);
       setSubmitting(false);
     }
   });
@@ -110,6 +126,11 @@ export default function Auth() {
   const handleGoogleClick = async () => {
     setError('');
     setSubmitting(true);
+
+    // Safety timeout fallback to prevent UI hanging if Google popup is closed or blocked
+    const safetyTimeout = setTimeout(() => {
+      setSubmitting(prev => (prev ? false : prev));
+    }, 45000);
 
     if (Capacitor.isNativePlatform()) {
       try {
@@ -130,6 +151,7 @@ export default function Auth() {
 
         if (credential || accessToken) {
           const result = await loginWithGoogle(credential, accessToken);
+          clearTimeout(safetyTimeout);
           setSubmitting(false);
           if (!result.success) {
             setError(result.message || 'Google authentication failed');
@@ -138,21 +160,23 @@ export default function Auth() {
           } else if (!hasMobileNumber(result.user)) {
             setShowMobilePrompt(true);
           } else {
+            setShowMobilePrompt(false);
             const activeUser = result.user || user;
             const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-              navigate('/admin');
+              navigate('/admin', { replace: true });
             } else {
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
             }
           }
         } else {
           // Native sign-in returned no credentials, fallback to custom OAuth silently
+          clearTimeout(safetyTimeout);
           handleGoogleLoginCustom();
         }
       } catch (e) {
-        console.warn('Native Google Auth encountered an issue (SHA-1/client ID mismatch), falling back to In-App OAuth:', e);
-        // Fall back to In-App OAuth token handler without showing red error notice box
+        clearTimeout(safetyTimeout);
+        console.warn('Native Google Auth encountered an issue, falling back to In-App OAuth:', e);
         try {
           handleGoogleLoginCustom();
         } catch (fallbackErr) {
@@ -161,7 +185,12 @@ export default function Auth() {
         }
       }
     } else {
-      handleGoogleLoginCustom();
+      try {
+        handleGoogleLoginCustom();
+      } catch (e) {
+        clearTimeout(safetyTimeout);
+        setSubmitting(false);
+      }
     }
   };
 
@@ -184,11 +213,12 @@ export default function Auth() {
       if (!hasMobileNumber(user)) {
         setShowMobilePrompt(true);
       } else {
+        setShowMobilePrompt(false);
         const role = user.role ? String(user.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       }
     }
@@ -212,12 +242,13 @@ export default function Auth() {
       } else if (!hasMobileNumber(result.user)) {
         setShowMobilePrompt(true);
       } else {
+        setShowMobilePrompt(false);
         const activeUser = result.user || user;
         const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
         if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       }
     } else {
@@ -237,9 +268,9 @@ export default function Auth() {
           const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
           setTimeout(() => {
             if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-              navigate('/admin');
+              navigate('/admin', { replace: true });
             } else {
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
             }
           }, 1000);
         }

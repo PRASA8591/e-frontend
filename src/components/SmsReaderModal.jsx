@@ -23,6 +23,7 @@ const SMS_SAMPLES = [
 ];
 
 export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTransactionAdded, triggerAlert }) {
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
   const [smsText, setSmsText] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [parsedData, setParsedData] = useState(null);
@@ -34,10 +35,10 @@ export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTrans
   useModalScrollLock(isOpen);
 
   useEffect(() => {
-    if (accounts.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(accounts[0]._id);
+    if (safeAccounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(safeAccounts[0]._id);
     }
-  }, [accounts]);
+  }, [safeAccounts]);
 
   // Live Auto-Parse on Text Change
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTrans
       setSubmitting(true);
       const res = await axios.post('/api/transactions/parse-sms', {
         smsText,
-        accountId: selectedAccountId || (accounts[0] && accounts[0]._id),
+        accountId: selectedAccountId || (safeAccounts[0] && safeAccounts[0]._id),
         customCategory,
         customDescription
       });
@@ -218,7 +219,7 @@ export default function SmsReaderModal({ isOpen, onClose, accounts = [], onTrans
                     onChange={(e) => setSelectedAccountId(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-prasatek-primary"
                   >
-                    {accounts.map(acc => (
+                    {safeAccounts.map(acc => (
                       <option key={acc._id} value={acc._id}>{acc.name}</option>
                     ))}
                   </select>

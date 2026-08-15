@@ -19,15 +19,23 @@ export default function VerifyEmail() {
 
   const inputRefs = useRef([]);
 
+  const hasMobileNumber = (u) => {
+    if (!u) return false;
+    const phoneVal = u.phone || u.mobile || u.phoneNumber || u.mobileNumber || u.phone_number || u.tel;
+    if (phoneVal === undefined || phoneVal === null) return false;
+    const str = String(phoneVal).trim();
+    return str !== '' && str !== 'null' && str !== 'undefined';
+  };
+
   // Redirect if user is already verified and logged in
   useEffect(() => {
     if (user && user.isVerified) {
-      if (!user.mobile || user.mobile.trim() === '') {
+      if (!hasMobileNumber(user)) {
         navigate('/login');
       } else if (user.role === 'admin' || user.role === 'manager' || user.role === 'system_admin' || user.role === 'system-admin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [user, navigate]);
@@ -95,13 +103,14 @@ export default function VerifyEmail() {
 
     if (result.success) {
       setSuccess(result.message || 'Email verified successfully! Redirecting...');
+      const targetUser = result.user || user;
       setTimeout(() => {
-        if (!user?.mobile || user.mobile.trim() === '') {
-          navigate('/login');
-        } else if (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'system_admin' || user?.role === 'system-admin') {
-          navigate('/admin');
+        if (!hasMobileNumber(targetUser)) {
+          navigate('/login', { replace: true });
+        } else if (targetUser?.role === 'admin' || targetUser?.role === 'manager' || targetUser?.role === 'system_admin' || targetUser?.role === 'system-admin') {
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       }, 1200);
     } else {

@@ -136,9 +136,10 @@ export default function Admin() {
     setPendingOrdersLoading(true);
     try {
       const res = await axios.get('/api/admin/payments/pending');
-      setPendingOrders(res.data);
+      setPendingOrders(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Fetch pending orders error:', err.message);
+      setPendingOrders([]);
     } finally {
       setPendingOrdersLoading(false);
     }
@@ -179,10 +180,11 @@ export default function Admin() {
         axios.get('/api/admin/users'),
         axios.get('/api/admin/stats')
       ]);
-      setUsers(usersRes.data);
-      setStats(statsRes.data);
+      setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+      setStats(statsRes.data || {});
     } catch (err) {
       console.error('Error fetching admin data:', err);
+      setUsers([]);
     }
   };
 
@@ -204,9 +206,10 @@ export default function Admin() {
     setAuditLogsLoading(true);
     try {
       const res = await axios.get('/api/admin/audit-logs');
-      setAuditLogs(res.data);
+      setAuditLogs(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
+      setAuditLogs([]);
     } finally {
       setAuditLogsLoading(false);
     }
@@ -217,9 +220,10 @@ export default function Admin() {
     setAnnouncementsLoading(true);
     try {
       const res = await axios.get('/api/admin/announcements');
-      setAnnouncementsList(res.data);
+      setAnnouncementsList(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching announcements:', err);
+      setAnnouncementsList([]);
     } finally {
       setAnnouncementsLoading(false);
     }
@@ -251,9 +255,10 @@ export default function Admin() {
     setContactsLoading(true);
     try {
       const res = await axios.get('/api/contacts');
-      setContacts(res.data);
+      setContacts(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching contact messages:', err);
+      setContacts([]);
     } finally {
       setContactsLoading(false);
     }
@@ -277,11 +282,16 @@ export default function Admin() {
 
   // Handle User Search & Filtering
   const filteredUsers = useMemo(() => {
-    return users.filter(u => {
+    const safeUsers = Array.isArray(users) ? users : [];
+    return safeUsers.filter(u => {
+      if (!u) return false;
+      const uName = u.name || '';
+      const uEmail = u.email || '';
+      const uOrg = u.org || '';
       const matchesSearch = 
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (u.org && u.org.toLowerCase().includes(searchQuery.toLowerCase()));
+        uName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        uEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        uOrg.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesPlan = planFilter === 'All' || u.plan === planFilter.toLowerCase();
       const matchesRole = roleFilter === 'All' || u.role === roleFilter.toLowerCase();
@@ -292,11 +302,13 @@ export default function Admin() {
 
   // Handle Audit Log Filtering
   const filteredAuditLogs = useMemo(() => {
-    return auditLogs.filter(log => {
+    const safeAudit = Array.isArray(auditLogs) ? auditLogs : [];
+    return safeAudit.filter(log => {
+      if (!log) return false;
       const q = auditSearchQuery.toLowerCase();
       return (
-        log.action.toLowerCase().includes(q) ||
-        log.details.toLowerCase().includes(q) ||
+        (log.action || '').toLowerCase().includes(q) ||
+        (log.details || '').toLowerCase().includes(q) ||
         (log.adminName && log.adminName.toLowerCase().includes(q)) ||
         (log.targetUser && log.targetUser.toLowerCase().includes(q))
       );
@@ -309,10 +321,12 @@ export default function Admin() {
     setUserFinancialsLoading(true);
     try {
       const res = await axios.get(`/api/admin/users/${targetUser._id}/financials`);
-      setUserAccounts(res.data.accounts);
-      setUserTransactions(res.data.transactions);
+      setUserAccounts(Array.isArray(res.data?.accounts) ? res.data.accounts : []);
+      setUserTransactions(Array.isArray(res.data?.transactions) ? res.data.transactions : []);
     } catch (err) {
       triggerAlert('Error', 'Failed to load user financial logs.', 'error');
+      setUserAccounts([]);
+      setUserTransactions([]);
     } finally {
       setUserFinancialsLoading(false);
     }
@@ -357,7 +371,7 @@ export default function Admin() {
       const res = await axios.put(`/api/admin/users/${targetUser._id}/verify`, {
         isVerified: !targetUser.isVerified
       });
-      setUsers(users.map(u => u._id === targetUser._id ? { ...u, isVerified: res.data.isVerified } : u));
+      setUsers(prev => (Array.isArray(prev) ? prev : []).map(u => u._id === targetUser._id ? { ...u, isVerified: res.data.isVerified } : u));
       if (selectedUser?._id === targetUser._id) {
         setSelectedUser(prev => ({ ...prev, isVerified: res.data.isVerified }));
       }
@@ -372,7 +386,7 @@ export default function Admin() {
     const newStatus = targetUser.status === 'suspended' ? 'active' : 'suspended';
     try {
       await axios.put(`/api/admin/users/${targetUser._id}/status`, { status: newStatus });
-      setUsers(users.map(u => u._id === targetUser._id ? { ...u, status: newStatus } : u));
+      setUsers(prev => (Array.isArray(prev) ? prev : []).map(u => u._id === targetUser._id ? { ...u, status: newStatus } : u));
       if (selectedUser?._id === targetUser._id) {
         setSelectedUser(prev => ({ ...prev, status: newStatus }));
       }
@@ -389,7 +403,7 @@ export default function Admin() {
         plan: newPlan,
         planType: newPlan === 'free' ? 'none' : 'yearly'
       });
-      setUsers(users.map(u => u._id === targetUser._id ? { ...u, plan: res.data.plan, planType: res.data.planType } : u));
+      setUsers(prev => (Array.isArray(prev) ? prev : []).map(u => u._id === targetUser._id ? { ...u, plan: res.data.plan, planType: res.data.planType } : u));
       if (selectedUser?._id === targetUser._id) {
         setSelectedUser(prev => ({ ...prev, plan: res.data.plan, planType: res.data.planType }));
       }
@@ -404,7 +418,7 @@ export default function Admin() {
   const handleChangeRole = async (targetUser, newRole) => {
     try {
       await axios.put(`/api/admin/users/${targetUser._id}/role`, { role: newRole });
-      setUsers(users.map(u => u._id === targetUser._id ? { ...u, role: newRole } : u));
+      setUsers(prev => (Array.isArray(prev) ? prev : []).map(u => u._id === targetUser._id ? { ...u, role: newRole } : u));
       if (selectedUser?._id === targetUser._id) {
         setSelectedUser(prev => ({ ...prev, role: newRole }));
       }
