@@ -120,6 +120,7 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
@@ -625,13 +626,23 @@ export default function Settings() {
               {/* Confirm Password Input */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wide">Confirm New Password</label>
-                <input 
-                  type="password" 
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 dark:bg-slate-800/40 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl p-3 border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary focus:bg-white dark:focus:bg-slate-800 transition font-mono"
-                />
+                <div className="relative">
+                  <input 
+                    type={showConfirmPass ? 'text' : 'password'} 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-800/40 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl pl-3 pr-10 py-3 border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-prasatek-primary focus:bg-white dark:focus:bg-slate-800 transition font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showConfirmPass ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <button
