@@ -4,4 +4,5 @@
     <string name="title_activity_main">ExpenseTracker Pro</string>
     <string name="package_name">com.prasatek.expensetrackerpro</string>
     <string name="custom_url_scheme">com.prasatek.expensetrackerpro</string>
+    <string name="server_client_id">40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com</string>
 </resources>

@@ -106,26 +106,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (emailOrUserData, password) => {
     if (typeof emailOrUserData === 'object') {
-      // Direct payload state update from forms
       const userToken = emailOrUserData.token || emailOrUserData.jwt;
-      const userData = emailOrUserData.user || (({ token, jwt, message, ...rest }) => rest)(emailOrUserData);
-      if (userToken) {
-        setToken(userToken);
-        try {
-          localStorage.setItem('token', userToken);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
-        } catch (e) {}
-      }
-      if (userData && Object.keys(userData).length > 0) {
-        updateUserState(userData);
-      }
-      return { success: true, user: userData, token: userToken };
-    }
-
-    try {
-      const res = await axios.post('/api/auth/login', { email: emailOrUserData, password });
-      const userToken = res.data?.token || res.data?.jwt;
-      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      let userData = emailOrUserData.user || (({ token, jwt, message, ...rest }) => rest)(emailOrUserData);
       
       if (userToken) {
         setToken(userToken);
@@ -134,9 +116,55 @@ export const AuthProvider = ({ children }) => {
           axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
         } catch (e) {}
       }
-      if (userData && Object.keys(userData).length > 0) {
+
+      if (userData && Object.keys(userData).length > 0 && (userData._id || userData.email)) {
         updateUserState(userData);
+      } else if (userToken) {
+        // Fetch full profile from /api/auth/me if missing
+        try {
+          const meRes = await axios.get('/api/auth/me', {
+            headers: { Authorization: `Bearer ${userToken}` }
+          });
+          const fetched = meRes.data?.user || meRes.data;
+          if (fetched && typeof fetched === 'object' && (fetched._id || fetched.email)) {
+            userData = fetched;
+            updateUserState(fetched);
+          }
+        } catch (meErr) {
+          console.warn('Failed to resolve /api/auth/me on token login:', meErr);
+        }
       }
+      return { success: true, user: userData, token: userToken };
+    }
+
+    try {
+      const res = await axios.post('/api/auth/login', { email: emailOrUserData, password });
+      
+      // Ensure res.data is a valid JSON object and not HTML from a rewrite/404
+      if (!res.data || typeof res.data !== 'object' || typeof res.data === 'string') {
+        return {
+          success: false,
+          message: 'Received invalid response from server. Please verify your connection.'
+        };
+      }
+
+      const userToken = res.data?.token || res.data?.jwt;
+      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      
+      if (!userToken || !userData || (!userData._id && !userData.email)) {
+        return {
+          success: false,
+          message: 'Invalid email or password. Please try again.'
+        };
+      }
+
+      setToken(userToken);
+      try {
+        localStorage.setItem('token', userToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+      } catch (e) {}
+
+      updateUserState(userData);
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       if (error.response?.data?.requiresVerification) {
@@ -149,7 +177,7 @@ export const AuthProvider = ({ children }) => {
       }
       return {
         success: false,
-        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Unable to connect to server. Please check your internet connection.' : (error.message || 'Login failed'))
+        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Unable to connect to backend server. Please check your internet connection.' : (error.message || 'Login failed'))
       };
     }
   };
@@ -165,19 +193,31 @@ export const AuthProvider = ({ children }) => {
           message: res.data.message
         };
       }
+
+      if (!res.data || typeof res.data !== 'object' || typeof res.data === 'string') {
+        return {
+          success: false,
+          message: 'Received invalid response from server during Google authentication.'
+        };
+      }
+
       const userToken = res.data?.token || res.data?.jwt;
       const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
       
-      if (userToken) {
-        setToken(userToken);
-        try {
-          localStorage.setItem('token', userToken);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
-        } catch (e) {}
+      if (!userToken || !userData || (!userData._id && !userData.email)) {
+        return {
+          success: false,
+          message: 'Google authentication failed to retrieve a valid user profile.'
+        };
       }
-      if (userData && Object.keys(userData).length > 0) {
-        updateUserState(userData);
-      }
+
+      setToken(userToken);
+      try {
+        localStorage.setItem('token', userToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+      } catch (e) {}
+
+      updateUserState(userData);
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {

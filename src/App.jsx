@@ -83,14 +83,16 @@ function AppContent() {
           // Format expensetracker://auth-callback?token=XYZ
           const parsedUrl = new URL(rawUrl.replace('expensetracker://', 'https://cash.prasatek.lk/'));
           const token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('jwt');
-          if (token) {
-            localStorage.setItem('token', token);
-            if (Capacitor.isNativePlatform()) {
-              try { await Browser.close(); } catch (e) {}
+            if (token) {
+              localStorage.setItem('token', token);
+              if (Capacitor.isNativePlatform()) {
+                try { await Browser.close(); } catch (e) {}
+              }
+              const res = await login({ token });
+              if (res?.success) {
+                navigate('/dashboard', { replace: true });
+              }
             }
-            login({ token });
-            navigate('/dashboard');
-          }
         }
       } catch (err) {
         console.error('[DeepLink] Failed to parse URL:', err);
