@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App as CapApp } from '@capacitor/app';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import Footer from '../components/Footer';
 
@@ -139,95 +141,101 @@ export default function Auth() {
     setError('');
     setGoogleLoading(true);
 
-    let safetyTimer = null;
     try {
-      // 15-second timeout safeguard to ensure the button NEVER hangs permanently
-      const timeoutPromise = new Promise((_, reject) => {
-        safetyTimer = setTimeout(() => {
-          reject(new Error('GOOGLE_TIMEOUT'));
-        }, 15000);
-      });
-
       if (Capacitor.isNativePlatform()) {
+        let nativeSuccess = false;
+
+        // Try Native GoogleAuth Plugin first
         try {
-          const nativeSignIn = (async () => {
-            try {
-              await GoogleAuth.initialize({
-                clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
-                scopes: ['profile', 'email'],
-                grantOfflineAccess: true
-              });
-            } catch (initErr) {
-              console.warn('[Native GoogleAuth] Init notice:', initErr);
-            }
-            return await GoogleAuth.signIn();
-          })();
+          await GoogleAuth.initialize({
+            clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true
+          });
 
-          const googleUser = await Promise.race([nativeSignIn, timeoutPromise]);
+          const googleUser = await GoogleAuth.signIn();
 
-          if (!googleUser) {
-            setGoogleLoading(false);
-            return;
-          }
+          if (googleUser) {
+            const email = googleUser?.email || googleUser?.user?.email || googleUser?.profile?.email || '';
+            const name = googleUser?.name || googleUser?.displayName || googleUser?.givenName || googleUser?.user?.name || googleUser?.user?.displayName || 'Google User';
+            const idToken = googleUser?.authentication?.idToken || googleUser?.idToken || googleUser?.user?.idToken || '';
+            const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken || googleUser?.user?.accessToken || '';
+            const picture = googleUser?.imageUrl || googleUser?.photoUrl || googleUser?.picture || googleUser?.user?.imageUrl || googleUser?.user?.photoUrl || '';
 
-          // Safely extract user fields across all possible Capacitor response structures
-          const email = googleUser?.email || googleUser?.user?.email || googleUser?.profile?.email || '';
-          const name = googleUser?.name || googleUser?.displayName || googleUser?.givenName || googleUser?.user?.name || googleUser?.user?.displayName || 'Google User';
-          const idToken = googleUser?.authentication?.idToken || googleUser?.idToken || googleUser?.user?.idToken || '';
-          const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken || googleUser?.user?.accessToken || '';
-          const picture = googleUser?.imageUrl || googleUser?.photoUrl || googleUser?.picture || googleUser?.user?.imageUrl || googleUser?.user?.photoUrl || '';
+            if (email || idToken || accessToken) {
+              const payload = { idToken, credential: idToken, accessToken, email, name, picture };
+              const result = await loginWithGoogle(payload);
 
-          if (!email && !idToken && !accessToken) {
-            throw new Error('Google authentication returned invalid user data');
-          }
-
-          // Format payload safely for Backend
-          const payload = {
-            idToken,
-            credential: idToken,
-            accessToken,
-            email,
-            name,
-            picture
-          };
-
-          const result = await loginWithGoogle(payload);
-
-          if (!result || !result.success) {
-            const failMsg = result?.message || 'Server authentication failed';
-            setError(failMsg);
-            alert('Login Failed: ' + failMsg);
-          } else if (result.requiresVerification) {
-            navigate('/verify-email', { state: { email: result.email, message: result.message } });
-          } else {
-            const activeUser = result.user || user || { name, email };
-            if (hasPhone(activeUser)) {
-              setShowMobilePrompt(false);
-              const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
-              if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-                navigate('/admin', { replace: true });
-              } else {
-                navigate('/dashboard', { replace: true });
+              if (result && result.success) {
+                nativeSuccess = true;
+                const activeUser = result.user || user || { name, email };
+                if (hasPhone(activeUser)) {
+                  setShowMobilePrompt(false);
+                  const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
+                  if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+                    navigate('/admin', { replace: true });
+                  } else {
+                    navigate('/dashboard', { replace: true });
+                  }
+                } else {
+                  setShowMobilePrompt(true);
+                }
+                setGoogleLoading(false);
+                return;
               }
-            } else {
-              setShowMobilePrompt(true);
             }
           }
-          return;
         } catch (nativeErr) {
           const errMsg = String(nativeErr?.message || nativeErr || '');
           const isUserCancelled = errMsg.includes('12501') || errMsg.includes('cancel') || errMsg.includes('USER_CANCELLED') || errMsg.includes('popup_closed');
           if (isUserCancelled) {
+            setGoogleLoading(false);
             return;
           }
-          console.error('[Native GoogleAuth] Native sign-in error:', nativeErr);
-          const alertMsg = 'Google Sign-In failed: ' + (errMsg || 'Network or account selection error');
-          setError(alertMsg);
-          alert(alertMsg);
+          console.warn('[Native GoogleAuth] Plugin unavailable or missing SHA-1, falling back to In-App Browser OAuth:', nativeErr);
+        }
+
+        // Bulletproof In-App Browser OAuth Fallback for Capacitor
+        if (!nativeSuccess) {
+          const authUrl = 'https://backend-xolk.onrender.com/api/auth/google/app-login';
+          await Browser.open({ url: authUrl, windowName: '_self' });
+
+          const listener = await CapApp.addListener('appUrlOpen', async (event) => {
+            try {
+              if (event.url && (event.url.includes('token=') || event.url.includes('auth-callback'))) {
+                const parsedUrl = new URL(event.url.replace('expensetracker://', 'https://cash.prasatek.lk/'));
+                const token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('jwt');
+                const userStr = parsedUrl.searchParams.get('user');
+
+                if (token) {
+                  localStorage.setItem('token', token);
+                  let parsedUser = null;
+                  if (userStr) {
+                    try {
+                      parsedUser = JSON.parse(decodeURIComponent(userStr));
+                      localStorage.setItem('user', JSON.stringify(parsedUser));
+                    } catch (e) {}
+                  }
+                  try { await Browser.close(); } catch (e) {}
+                  await login({ token, user: parsedUser });
+                  setGoogleLoading(false);
+                  navigate('/dashboard', { replace: true });
+                }
+              }
+            } catch (deepErr) {
+              console.error('[DeepLink] Processing error:', deepErr);
+            }
+          });
+
+          // Timeout listener cleanup
+          setTimeout(() => {
+            try { listener.remove(); } catch (e) {}
+            setGoogleLoading(false);
+          }, 45000);
           return;
         }
       } else {
-        // Web Environment standard trigger
+        // Standard Web Environment flow (zero disruption to web app)
         try {
           handleGoogleLoginCustom();
         } catch (e) {
@@ -235,17 +243,14 @@ export default function Auth() {
         }
       }
     } catch (outerErr) {
-      if (outerErr?.message !== 'GOOGLE_TIMEOUT') {
-        const outMsg = outerErr.response?.data?.message || outerErr.message || 'Google Sign-In failed';
-        setError(outMsg);
-        if (Capacitor.isNativePlatform()) {
-          alert('Google Sign-In encountered an error: ' + outMsg);
-        }
-      }
+      const outMsg = outerErr.response?.data?.message || outerErr.message || 'Google Sign-In failed';
+      setError(outMsg);
+      console.error('Google Sign-In Error:', outerErr);
     } finally {
-      if (safetyTimer) clearTimeout(safetyTimer);
-      setGoogleLoading(false);
-      setSubmitting(false);
+      setTimeout(() => {
+        setGoogleLoading(false);
+        setSubmitting(false);
+      }, 1000);
     }
   };
 
