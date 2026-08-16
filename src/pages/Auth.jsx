@@ -197,7 +197,7 @@ export default function Auth() {
 
         // Bulletproof In-App Browser OAuth Fallback for Capacitor
         if (!nativeSuccess) {
-          const authUrl = 'https://backend-xolk.onrender.com/api/auth/google/app-login';
+          const authUrl = 'https://backend-xolk.onrender.com/api/auth/google';
           await Browser.open({ url: authUrl, windowName: '_self' });
 
           const listener = await CapApp.addListener('appUrlOpen', async (event) => {
