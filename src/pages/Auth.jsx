@@ -134,15 +134,14 @@ export default function Auth() {
     setError('');
     setSubmitting(true);
 
-    // Safety timeout fallback to prevent UI hanging if Google auth popup is closed or blocked
+    // Fail-safe timeout to prevent button permanently stuck in 'Authenticating...'
     const safetyTimeout = setTimeout(() => {
-      setSubmitting(prev => (prev ? false : prev));
-      setError('Google sign-in timed out. Please try again.');
-    }, 30000);
+      setSubmitting(false);
+    }, 25000);
 
     if (Capacitor.isNativePlatform()) {
       try {
-        // Ensure GoogleAuth is initialized before native sign-in call
+        // Defensive initialization
         try {
           await GoogleAuth.initialize({
             clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
@@ -150,7 +149,7 @@ export default function Auth() {
             grantOfflineAccess: true
           });
         } catch (initErr) {
-          console.warn('[Native GoogleAuth] re-init notice:', initErr);
+          console.warn('[Native GoogleAuth] Init notice:', initErr);
         }
 
         const googleUser = await GoogleAuth.signIn();
@@ -163,7 +162,7 @@ export default function Auth() {
           setSubmitting(false);
 
           if (!result || !result.success) {
-            setError(result?.message || 'Google authentication failed');
+            setError(result?.message || 'Google verification failed.');
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
           } else {
@@ -180,19 +179,33 @@ export default function Auth() {
               setShowMobilePrompt(true);
             }
           }
+          return;
         } else {
+          // Native returned no credentials, cleanly fall back to web OAuth
           clearTimeout(safetyTimeout);
-          setSubmitting(false);
-          setError('No Google authentication credentials received.');
+          handleGoogleLoginCustom();
+          return;
         }
-      } catch (e) {
+      } catch (nativeErr) {
         clearTimeout(safetyTimeout);
-        setSubmitting(false);
-        console.warn('Native Google Auth issue or user cancellation:', e);
-        const errMsg = e?.message || String(e || '');
-        if (!errMsg.includes('cancel') && !errMsg.includes('12501') && !errMsg.includes('USER_CANCELLED')) {
-          setError(errMsg || 'Google authentication was interrupted.');
+        console.warn('[Native GoogleAuth] Native sign-in notice. Attempting web OAuth fallback:', nativeErr);
+        const errMsg = String(nativeErr?.message || nativeErr || '');
+        const isUserCancelled = errMsg.includes('12501') || errMsg.includes('cancel') || errMsg.includes('USER_CANCELLED') || errMsg.includes('popup_closed');
+        
+        if (isUserCancelled) {
+          setSubmitting(false);
+          return;
         }
+
+        // Clean fallback to in-app Web OAuth without throwing raw crash messages
+        try {
+          handleGoogleLoginCustom();
+        } catch (fallbackErr) {
+          console.error('[Google Fallback] In-App OAuth failed:', fallbackErr);
+          setSubmitting(false);
+          setError('Google sign-in is temporarily unavailable. Please sign in using your Email & Password.');
+        }
+        return;
       }
     } else {
       // Web environment
@@ -301,9 +314,9 @@ export default function Auth() {
     setError('');
     const result = await updateMobile(newMobile.trim());
     setSubmitting(false);
-    if (result.success) {
+    if (result && result.success) {
       setShowMobilePrompt(false);
-      const activeUser = result.user || user;
+      const activeUser = result.user || { ...(user || {}), mobile: newMobile.trim(), phone: newMobile.trim() };
       const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
       if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
         navigate('/admin', { replace: true });
@@ -311,7 +324,7 @@ export default function Auth() {
         navigate('/dashboard', { replace: true });
       }
     } else {
-      setError(result.message || 'Failed to update mobile number.');
+      setError(result?.message || 'Failed to update mobile number.');
     }
   };
 

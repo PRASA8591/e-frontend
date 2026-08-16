@@ -224,14 +224,16 @@ export const AuthProvider = ({ children }) => {
 
   const updateMobile = async (mobile) => {
     try {
-      const res = await axios.put('/api/auth/mobile', { mobile });
-      const updatedUser = res.data;
-      updateUserState(prev => ({ ...(prev || {}), ...updatedUser }));
-      return { success: true, user: updatedUser };
+      const trimmed = String(mobile).trim();
+      const res = await axios.put('/api/auth/mobile', { mobile: trimmed });
+      const updatedUser = res.data || {};
+      const mergedUser = { ...(user || {}), ...updatedUser, mobile: trimmed, phone: trimmed };
+      updateUserState(mergedUser);
+      return { success: true, user: mergedUser };
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to update mobile'
+        message: error.response?.data?.message || 'Failed to update mobile number'
       };
     }
   };
