@@ -141,11 +141,11 @@ export default function Auth() {
 
     let safetyTimer = null;
     try {
-      // 10-second timeout safeguard to ensure the button NEVER hangs permanently
+      // 15-second timeout safeguard to ensure the button NEVER hangs permanently
       const timeoutPromise = new Promise((_, reject) => {
         safetyTimer = setTimeout(() => {
           reject(new Error('GOOGLE_TIMEOUT'));
-        }, 10000);
+        }, 15000);
       });
 
       if (Capacitor.isNativePlatform()) {
@@ -164,42 +164,41 @@ export default function Auth() {
           })();
 
           const googleUser = await Promise.race([nativeSignIn, timeoutPromise]);
-          const credential = googleUser?.authentication?.idToken || googleUser?.idToken;
-          const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken;
-          const email = googleUser?.email;
-          const name = googleUser?.name || googleUser?.givenName;
-          const picture = googleUser?.imageUrl || googleUser?.picture;
 
-          if (credential || accessToken || email) {
-            const result = await loginWithGoogle({
-              credential,
-              idToken: credential,
-              accessToken,
-              email,
-              name,
-              picture
-            });
-
-            if (!result || !result.success) {
-              setError(result?.message || 'Google verification failed.');
-            } else if (result.requiresVerification) {
-              navigate('/verify-email', { state: { email: result.email, message: result.message } });
-            } else {
-              const activeUser = result.user || user;
-              if (hasPhone(activeUser)) {
-                setShowMobilePrompt(false);
-                const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
-                if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-                  navigate('/admin', { replace: true });
-                } else {
-                  navigate('/dashboard', { replace: true });
-                }
-              } else {
-                setShowMobilePrompt(true);
-              }
-            }
-            return;
+          if (!googleUser) {
+            throw new Error('Google Sign-In was cancelled or returned no data');
           }
+
+          // Format payload safely for Backend
+          const payload = {
+            idToken: googleUser.authentication?.idToken || googleUser.idToken || '',
+            accessToken: googleUser.authentication?.accessToken || googleUser.accessToken || '',
+            email: googleUser.email,
+            name: googleUser.name || googleUser.displayName || googleUser.givenName || 'User',
+            picture: googleUser.imageUrl || googleUser.photoUrl || googleUser.picture || ''
+          };
+
+          const result = await loginWithGoogle(payload);
+
+          if (!result || !result.success) {
+            setError(result?.message || 'Google verification failed.');
+          } else if (result.requiresVerification) {
+            navigate('/verify-email', { state: { email: result.email, message: result.message } });
+          } else {
+            const activeUser = result.user || user;
+            if (hasPhone(activeUser)) {
+              setShowMobilePrompt(false);
+              const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
+              if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+                navigate('/admin', { replace: true });
+              } else {
+                navigate('/dashboard', { replace: true });
+              }
+            } else {
+              setShowMobilePrompt(true);
+            }
+          }
+          return;
         } catch (nativeErr) {
           const errMsg = String(nativeErr?.message || nativeErr || '');
           const isUserCancelled = errMsg.includes('12501') || errMsg.includes('cancel') || errMsg.includes('USER_CANCELLED') || errMsg.includes('popup_closed');
@@ -209,37 +208,27 @@ export default function Auth() {
           console.warn('[Native GoogleAuth] Fallback to in-app Web OAuth:', nativeErr);
           try {
             handleGoogleLoginCustom();
-            setTimeout(() => {
-              setGoogleLoading(false);
-              setSubmitting(false);
-            }, 10000);
           } catch (fbErr) {
             setError('Google sign-in could not be initiated. Please log in with Email and Password.');
           }
           return;
         }
       } else {
-        // Standard Web Browser flow
+        // Web Environment standard trigger
         try {
           handleGoogleLoginCustom();
-          setTimeout(() => {
-            setGoogleLoading(false);
-            setSubmitting(false);
-          }, 10000);
         } catch (e) {
           setError('Failed to initiate Google sign-in.');
         }
       }
     } catch (outerErr) {
       if (outerErr?.message !== 'GOOGLE_TIMEOUT') {
-        setError('Google sign-in was interrupted. Please try again.');
+        setError(outerErr.response?.data?.message || outerErr.message || 'Google Sign-In failed');
       }
     } finally {
       if (safetyTimer) clearTimeout(safetyTimer);
-      setTimeout(() => {
-        setGoogleLoading(false);
-        setSubmitting(false);
-      }, 500);
+      setGoogleLoading(false);
+      setSubmitting(false);
     }
   };
 

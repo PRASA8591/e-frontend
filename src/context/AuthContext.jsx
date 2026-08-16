@@ -203,10 +203,19 @@ export const AuthProvider = ({ children }) => {
       if (typeof credentialOrPayload === 'object' && credentialOrPayload !== null) {
         payload = credentialOrPayload;
       } else {
-        payload = { credential: credentialOrPayload, idToken: credentialOrPayload, accessToken };
+        payload = {
+          credential: credentialOrPayload,
+          idToken: credentialOrPayload,
+          token: credentialOrPayload,
+          accessToken
+        };
       }
 
-      const res = await axios.post('/api/auth/google', payload);
+      const res = await axios.post('/api/auth/google', payload, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000
+      });
+
       if (res.data?.requiresVerification) {
         return {
           success: true,
@@ -223,8 +232,8 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      const userToken = res.data?.token || res.data?.jwt;
-      const rawUser = res.data?.user || (({ token, jwt, success, message, ...rest }) => rest)(res.data);
+      const userToken = res.data?.token || res.data?.accessToken || res.data?.jwt;
+      const rawUser = res.data?.user || res.data?.data?.user || (({ token, accessToken, jwt, success, message, ...rest }) => rest)(res.data);
       const userData = rawUser ? {
         ...rawUser,
         phone: rawUser.phone || rawUser.mobile || '',
@@ -234,7 +243,7 @@ export const AuthProvider = ({ children }) => {
       if (!userToken || !userData || (!userData._id && !userData.id && !userData.email)) {
         return {
           success: false,
-          message: 'Google authentication failed to retrieve a valid user profile.'
+          message: 'Backend did not return a valid authentication token or user profile.'
         };
       }
 
