@@ -34,9 +34,24 @@ export const getLocalTransactions = async () => {
     if (!db.isOpen()) {
       try { await db.open(); } catch (e) {}
     }
-    return await db.transactions.toArray();
+    const txs = await db.transactions.toArray();
+    return Array.isArray(txs) ? txs : [];
   } catch (err) {
     console.warn('[Dexie DB] Error fetching local transactions:', err?.message || err);
     return [];
   }
 };
+
+export const getLocalAccounts = async () => {
+  try {
+    if (!db.isOpen()) {
+      try { await db.open(); } catch (e) {}
+    }
+    const accs = await db.accounts.toArray();
+    return Array.isArray(accs) ? accs : [];
+  } catch (err) {
+    console.warn('[Dexie DB] Error fetching local accounts:', err?.message || err);
+    return [];
+  }
+};
+

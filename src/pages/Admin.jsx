@@ -890,7 +890,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900">
-                      {pendingOrders.map(ord => (
+                      {(Array.isArray(pendingOrders) ? pendingOrders : []).map(ord => (
                         <tr key={ord._id} className="hover:bg-slate-900/50 transition">
                           <td className="py-3 px-3 font-mono font-bold text-prasatek-primary">{ord.orderId}</td>
                           <td className="py-3 px-3">
@@ -1208,7 +1208,7 @@ export default function Admin() {
                         <div className="py-4 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Accounts Logged</div>
                       ) : (
                         <div className="space-y-1.5 max-h-[160px] overflow-y-auto hide-scroll">
-                          {userAccounts.map(acc => (
+                          {(Array.isArray(userAccounts) ? userAccounts : []).map(acc => (
                             <div key={acc._id} className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
                               <div>
                                 <span className="font-extrabold text-white">{acc.name}</span>
@@ -1224,16 +1224,16 @@ export default function Admin() {
                     {/* Transaction History Log */}
                     <div className="space-y-2 pt-3 border-t border-slate-900">
                       <h4 className="text-xs font-extrabold text-white flex justify-between items-center">
-                        <span>Transaction History ({userTransactions.length})</span>
+                        <span>Transaction History ({Array.isArray(userTransactions) ? userTransactions.length : 0})</span>
                       </h4>
 
                       {userFinancialsLoading ? (
                         <div className="py-4 text-center text-xs text-slate-500">Loading history...</div>
-                      ) : userTransactions.length === 0 ? (
+                      ) : (Array.isArray(userTransactions) ? userTransactions : []).length === 0 ? (
                         <div className="py-4 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Transaction History Logged</div>
                       ) : (
                         <div className="space-y-1.5 max-h-[220px] overflow-y-auto hide-scroll pr-1">
-                          {userTransactions.map(tx => (
+                          {(Array.isArray(userTransactions) ? userTransactions : []).map(tx => (
                             <div key={tx._id} className="bg-slate-900 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-[11px]">
                               <div>
                                 <div className="flex items-center gap-2">
@@ -1418,7 +1418,7 @@ export default function Admin() {
                   <div className="py-6 text-center text-xs text-slate-500 font-bold bg-slate-900/50 rounded-xl">No Announcements Broadcasted</div>
                 ) : (
                   <div className="space-y-2 max-h-[320px] overflow-y-auto hide-scroll pr-1">
-                    {announcementsList.map(a => (
+                    {(Array.isArray(announcementsList) ? announcementsList : []).map(a => (
                       <div key={a._id} className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 flex justify-between items-start gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -1659,7 +1659,7 @@ export default function Admin() {
                 ) : contacts.length === 0 ? (
                   <div className="py-12 text-center text-xs text-slate-500 font-bold">No inquiry tickets logged</div>
                 ) : (
-                  contacts.map(c => (
+                  (Array.isArray(contacts) ? contacts : []).map(c => (
                     <div 
                       key={c._id}
                       onClick={() => setSelectedContact(c)}

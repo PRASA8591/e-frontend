@@ -20,10 +20,10 @@ export default function Dashboard() {
   
   const hasUserPhone = (u) => {
     if (!u) return true; // Don't pop up modal if user object is not yet loaded
-    const mob = u.mobile || u.phone || u.phoneNumber || u.mobileNumber || u.phone_number || u.tel;
+    const mob = u.phone ?? u.mobile ?? u.phoneNumber ?? u.mobileNumber ?? u.phone_number ?? u.tel;
     if (mob !== undefined && mob !== null) {
       const str = String(mob).trim();
-      return str !== '' && str !== 'null' && str !== 'undefined';
+      return Boolean(str && str !== 'null' && str !== 'undefined');
     }
     return false;
   };
@@ -974,7 +974,7 @@ export default function Dashboard() {
                 </div>
                 <button 
                   type="submit" 
-                  disabled={submittingTx || accounts.length === 0}
+                  disabled={submittingTx || safeAccounts.length === 0}
                   className="w-full bg-prasatek-primary hover:bg-[#09734a] text-white font-extrabold rounded-xl py-3.5 transition shadow-lg mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingTx ? 'PROCESSING...' : 'ADD RECORD'}
@@ -992,7 +992,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">My Accounts</h3>
                   <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">
-                    ({filterAccount ? accounts.find(a => a._id === filterAccount)?.name || 'Selected' : 'All Accounts'})
+                    ({filterAccount ? safeAccounts.find(a => a && a._id === filterAccount)?.name || 'Selected' : 'All Accounts'})
                   </span>
                 </div>
                 <button 
@@ -1003,7 +1003,7 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scroll">
-                {accounts.length === 0 ? (
+                {safeAccounts.length === 0 ? (
                   <div className="text-xs text-gray-400 dark:text-slate-500 font-bold italic p-6 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl w-full text-center bg-white dark:bg-slate-900">
                     No accounts found. Click '+ Add Account'.
                   </div>

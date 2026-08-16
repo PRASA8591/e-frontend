@@ -24,7 +24,7 @@ export default function Subscription() {
     const fetchAccountsCount = async () => {
       try {
         const res = await axios.get('/api/accounts');
-        setAccountCount(Array.isArray(res.data) ? res.data.length : 0);
+        setAccountCount(Array.isArray(res.data) ? res.data.length : (Array.isArray(res.data?.accounts) ? res.data.accounts.length : 0));
       } catch (err) {
         console.error('Error fetching accounts count:', err);
         setAccountCount(0);
@@ -230,7 +230,7 @@ function PaymentOrdersTable() {
     const fetchOrders = async () => {
       try {
         const res = await axios.get('/api/payments/my-orders');
-        setOrders(Array.isArray(res.data) ? res.data : []);
+        setOrders(Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.orders) ? res.data.orders : []));
       } catch (err) {
         console.error('Failed to fetch payment orders:', err);
         setOrders([]);

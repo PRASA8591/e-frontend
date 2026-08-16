@@ -28,10 +28,12 @@ export default function Usage() {
           axios.get('/api/accounts'),
           axios.get('/api/transactions')
         ]);
-        setAccountsCount(accRes.data.length);
-        setTxCount(txRes.data.length);
+        setAccountsCount(Array.isArray(accRes.data) ? accRes.data.length : (Array.isArray(accRes.data?.accounts) ? accRes.data.accounts.length : 0));
+        setTxCount(Array.isArray(txRes.data) ? txRes.data.length : (Array.isArray(txRes.data?.transactions) ? txRes.data.transactions.length : 0));
       } catch (err) {
         console.error('Error fetching usage stats:', err);
+        setAccountsCount(0);
+        setTxCount(0);
       } finally {
         setLoading(false);
       }
