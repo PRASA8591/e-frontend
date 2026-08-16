@@ -107,7 +107,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (emailOrUserData, password) => {
     if (typeof emailOrUserData === 'object') {
       const userToken = emailOrUserData.token || emailOrUserData.jwt;
-      let userData = emailOrUserData.user || (({ token, jwt, message, ...rest }) => rest)(emailOrUserData);
+      let rawUser = emailOrUserData.user || (({ token, jwt, success, message, ...rest }) => rest)(emailOrUserData);
+      let userData = rawUser ? {
+        ...rawUser,
+        phone: rawUser.phone || rawUser.mobile || '',
+        mobile: rawUser.mobile || rawUser.phone || ''
+      } : null;
       
       if (userToken) {
         setToken(userToken);
@@ -117,7 +122,7 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {}
       }
 
-      if (userData && Object.keys(userData).length > 0 && (userData._id || userData.email)) {
+      if (userData && Object.keys(userData).length > 0 && (userData._id || userData.id || userData.email)) {
         updateUserState(userData);
       } else if (userToken) {
         // Fetch full profile from /api/auth/me if missing
@@ -126,9 +131,13 @@ export const AuthProvider = ({ children }) => {
             headers: { Authorization: `Bearer ${userToken}` }
           });
           const fetched = meRes.data?.user || meRes.data;
-          if (fetched && typeof fetched === 'object' && (fetched._id || fetched.email)) {
-            userData = fetched;
-            updateUserState(fetched);
+          if (fetched && typeof fetched === 'object' && (fetched._id || fetched.id || fetched.email)) {
+            userData = {
+              ...fetched,
+              phone: fetched.phone || fetched.mobile || '',
+              mobile: fetched.mobile || fetched.phone || ''
+            };
+            updateUserState(userData);
           }
         } catch (meErr) {
           console.warn('Failed to resolve /api/auth/me on token login:', meErr);
@@ -149,9 +158,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       const userToken = res.data?.token || res.data?.jwt;
-      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      const rawUser = res.data?.user || (({ token, jwt, success, message, ...rest }) => rest)(res.data);
+      const userData = rawUser ? {
+        ...rawUser,
+        phone: rawUser.phone || rawUser.mobile || '',
+        mobile: rawUser.mobile || rawUser.phone || ''
+      } : null;
       
-      if (!userToken || !userData || (!userData._id && !userData.email)) {
+      if (!userToken || !userData || (!userData._id && !userData.id && !userData.email)) {
         return {
           success: false,
           message: 'Invalid email or password. Please try again.'
@@ -161,6 +175,7 @@ export const AuthProvider = ({ children }) => {
       setToken(userToken);
       try {
         localStorage.setItem('token', userToken);
+        localStorage.setItem('user', JSON.stringify(userData));
         axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
       } catch (e) {}
 
@@ -182,9 +197,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginWithGoogle = async (credential, accessToken) => {
+  const loginWithGoogle = async (credentialOrPayload, accessToken) => {
     try {
-      const res = await axios.post('/api/auth/google', { credential, accessToken });
+      let payload = {};
+      if (typeof credentialOrPayload === 'object' && credentialOrPayload !== null) {
+        payload = credentialOrPayload;
+      } else {
+        payload = { credential: credentialOrPayload, idToken: credentialOrPayload, accessToken };
+      }
+
+      const res = await axios.post('/api/auth/google', payload);
       if (res.data?.requiresVerification) {
         return {
           success: true,
@@ -202,9 +224,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       const userToken = res.data?.token || res.data?.jwt;
-      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      const rawUser = res.data?.user || (({ token, jwt, success, message, ...rest }) => rest)(res.data);
+      const userData = rawUser ? {
+        ...rawUser,
+        phone: rawUser.phone || rawUser.mobile || '',
+        mobile: rawUser.mobile || rawUser.phone || ''
+      } : null;
       
-      if (!userToken || !userData || (!userData._id && !userData.email)) {
+      if (!userToken || !userData || (!userData._id && !userData.id && !userData.email)) {
         return {
           success: false,
           message: 'Google authentication failed to retrieve a valid user profile.'
@@ -214,6 +241,7 @@ export const AuthProvider = ({ children }) => {
       setToken(userToken);
       try {
         localStorage.setItem('token', userToken);
+        localStorage.setItem('user', JSON.stringify(userData));
         axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
       } catch (e) {}
 
@@ -239,11 +267,18 @@ export const AuthProvider = ({ children }) => {
         };
       }
       const userToken = res.data?.token || res.data?.jwt;
-      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      const rawUser = res.data?.user || (({ token, jwt, success, message, ...rest }) => rest)(res.data);
+      const userData = rawUser ? {
+        ...rawUser,
+        phone: rawUser.phone || rawUser.mobile || '',
+        mobile: rawUser.mobile || rawUser.phone || ''
+      } : null;
+
       if (userToken) {
         setToken(userToken);
         try {
           localStorage.setItem('token', userToken);
+          localStorage.setItem('user', JSON.stringify(userData));
           axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
         } catch (e) {}
       }
@@ -263,11 +298,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/verify', { email, code });
       const userToken = res.data?.token || res.data?.jwt;
-      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      const rawUser = res.data?.user || (({ token, jwt, success, message, ...rest }) => rest)(res.data);
+      const userData = rawUser ? {
+        ...rawUser,
+        phone: rawUser.phone || rawUser.mobile || '',
+        mobile: rawUser.mobile || rawUser.phone || ''
+      } : null;
+
       if (userToken) {
         setToken(userToken);
         try {
           localStorage.setItem('token', userToken);
+          localStorage.setItem('user', JSON.stringify(userData));
           axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
         } catch (e) {}
       }
@@ -308,8 +350,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const trimmed = String(mobile).trim();
       const res = await axios.put('/api/auth/mobile', { mobile: trimmed });
-      const updatedUser = res.data || {};
+      const updatedUser = res.data?.user || res.data || {};
       const mergedUser = { ...(user || {}), ...updatedUser, mobile: trimmed, phone: trimmed };
+      try {
+        localStorage.setItem('user', JSON.stringify(mergedUser));
+      } catch (e) {}
       updateUserState(mergedUser);
       return { success: true, user: mergedUser };
     } catch (error) {
@@ -350,8 +395,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const isAuthenticated = Boolean(user && token);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, verifyEmail, resendVerification, logout, updateMobile, updateBudget, updateUserOrg }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, loginWithGoogle, register, verifyEmail, resendVerification, logout, updateMobile, updateBudget, updateUserOrg }}>
       {children}
     </AuthContext.Provider>
   );

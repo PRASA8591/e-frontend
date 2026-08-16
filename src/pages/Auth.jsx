@@ -166,9 +166,20 @@ export default function Auth() {
           const googleUser = await Promise.race([nativeSignIn, timeoutPromise]);
           const credential = googleUser?.authentication?.idToken || googleUser?.idToken;
           const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken;
+          const email = googleUser?.email;
+          const name = googleUser?.name || googleUser?.givenName;
+          const picture = googleUser?.imageUrl || googleUser?.picture;
 
-          if (credential || accessToken) {
-            const result = await loginWithGoogle(credential, accessToken);
+          if (credential || accessToken || email) {
+            const result = await loginWithGoogle({
+              credential,
+              idToken: credential,
+              accessToken,
+              email,
+              name,
+              picture
+            });
+
             if (!result || !result.success) {
               setError(result?.message || 'Google verification failed.');
             } else if (result.requiresVerification) {
