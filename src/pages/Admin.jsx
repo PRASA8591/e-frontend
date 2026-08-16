@@ -155,6 +155,8 @@ export default function Admin() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState('');
   const [confirmMsg, setConfirmMsg] = useState('');
+  const [confirmBtnText, setConfirmBtnText] = useState('Confirm');
+  const [confirmBtnColor, setConfirmBtnColor] = useState('red');
   const [confirmAction, setConfirmAction] = useState(null);
 
   const [showAlert, setShowAlert] = useState(false);
@@ -489,7 +491,10 @@ export default function Admin() {
   const handleDeleteUser = (targetUser) => {
     setConfirmTitle('Delete User Profile');
     setConfirmMsg(`Are you sure you want to PERMANENTLY delete profile ${targetUser.email}? This will cascade delete all their accounts and transaction history.`);
+    setConfirmBtnText('Confirm Delete');
+    setConfirmBtnColor('red');
     setConfirmAction(() => async () => {
+      setShowConfirm(false);
       try {
         await axios.delete(`/api/admin/users/${targetUser._id}`);
         if (selectedUser?._id === targetUser._id) setSelectedUser(null);
@@ -498,7 +503,6 @@ export default function Admin() {
       } catch (err) {
         triggerAlert('Error', err.response?.data?.message || 'Failed to delete user.', 'error');
       }
-      setShowConfirm(false);
     });
     setShowConfirm(true);
   };
@@ -534,7 +538,10 @@ export default function Admin() {
   const handleDeleteAnnouncement = (announcement) => {
     setConfirmTitle('Delete Announcement');
     setConfirmMsg(`Are you sure you want to delete announcement "${announcement.title}"? This will also remove the notification from all user feeds.`);
+    setConfirmBtnText('Confirm Delete');
+    setConfirmBtnColor('red');
     setConfirmAction(() => async () => {
+      setShowConfirm(false);
       try {
         await axios.delete(`/api/admin/announcements/${announcement._id}`);
         fetchAnnouncements();
@@ -542,7 +549,6 @@ export default function Admin() {
       } catch (err) {
         triggerAlert('Error', 'Failed to delete announcement.', 'error');
       }
-      setShowConfirm(false);
     });
     setShowConfirm(true);
   };
@@ -924,14 +930,21 @@ export default function Admin() {
                               <button
                                 onClick={() => {
                                   setConfirmTitle('Approve Payment Order');
-                                  setConfirmMsg(`Are you sure you want to approve Order ${ord.orderId} for ${ord.userId?.name} (${ord.userId?.email})? This will immediately upgrade them to the ${ord.plan.toUpperCase()} plan.`);
+                                  setConfirmMsg(`Are you sure you want to approve Order ${ord.orderId} for ${ord.userId?.name || 'User'} (${ord.userId?.email || 'N/A'})? This will immediately upgrade them to the ${ord.plan.toUpperCase()} plan.`);
+                                  setConfirmBtnText('Approve & Activate');
+                                  setConfirmBtnColor('green');
                                   setConfirmAction(() => async () => {
+                                    // Immediate optimistic UI response
+                                    setPendingOrders(prev => prev.filter(p => p._id !== ord._id));
+                                    setShowConfirm(false);
+
                                     try {
                                       const res = await axios.put(`/api/admin/payments/${ord._id}/approve`);
-                                      triggerAlert('Approved & Activated', res.data.message, 'success');
+                                      triggerAlert('Approved & Activated', res.data?.message || 'Plan activated successfully.', 'success');
                                       fetchPendingOrders();
                                       fetchData();
                                     } catch (err) {
+                                      fetchPendingOrders();
                                       triggerAlert('Approval Error', err.response?.data?.message || 'Failed to approve payment.', 'error');
                                     }
                                   });
@@ -1903,18 +1916,26 @@ export default function Admin() {
 
             <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setShowConfirm(false)}
                 className="w-1/2 bg-slate-800 hover:bg-slate-700 font-bold py-3 rounded-xl transition text-xs cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   if (confirmAction) confirmAction();
                 }}
-                className="w-1/2 bg-red-600 hover:bg-red-700 font-bold py-3 rounded-xl transition text-xs shadow-md cursor-pointer"
+                className={`w-1/2 ${
+                  confirmBtnColor === 'green'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : confirmBtnColor === 'blue'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                } font-bold py-3 rounded-xl transition text-xs shadow-md cursor-pointer`}
               >
-                Confirm Delete
+                {confirmBtnText}
               </button>
             </div>
           </div>
