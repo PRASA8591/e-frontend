@@ -1,10 +1,14 @@
-name: Build Android APK (ExpenseTracker Pro)
+name: Build & Release Android APK (ExpenseTracker Pro)
 
 on:
   push:
     branches:
       - main
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -40,8 +44,34 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK Artifact
+      - name: Prepare APK Asset
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/ExpenseTrackerPro.apk
+
+      - name: Upload Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ExpenseTracker-Pro-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/ExpenseTrackerPro.apk
+
+      - name: Publish Direct APK to GitHub Release (Latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "ExpenseTracker Pro (Latest APK)"
+          body: |
+            ## 📱 ExpenseTracker Pro - Android APK Direct Download
+
+            Direct APK download for mobile:
+            - Tap **`ExpenseTrackerPro.apk`** below to download directly onto your Android device.
+            - Open the downloaded APK to install or update ExpenseTracker Pro.
+            - No desktop mode or zip extraction required!
+
+            *Built automatically by GitHub Actions from `${{ github.ref_name }}` (${{ github.sha }}).*
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: |
+            android/app/build/outputs/apk/debug/ExpenseTrackerPro.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
