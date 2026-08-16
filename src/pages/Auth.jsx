@@ -166,26 +166,41 @@ export default function Auth() {
           const googleUser = await Promise.race([nativeSignIn, timeoutPromise]);
 
           if (!googleUser) {
-            throw new Error('Google Sign-In was cancelled or returned no data');
+            setGoogleLoading(false);
+            return;
+          }
+
+          // Safely extract user fields across all possible Capacitor response structures
+          const email = googleUser?.email || googleUser?.user?.email || googleUser?.profile?.email || '';
+          const name = googleUser?.name || googleUser?.displayName || googleUser?.givenName || googleUser?.user?.name || googleUser?.user?.displayName || 'Google User';
+          const idToken = googleUser?.authentication?.idToken || googleUser?.idToken || googleUser?.user?.idToken || '';
+          const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken || googleUser?.user?.accessToken || '';
+          const picture = googleUser?.imageUrl || googleUser?.photoUrl || googleUser?.picture || googleUser?.user?.imageUrl || googleUser?.user?.photoUrl || '';
+
+          if (!email && !idToken && !accessToken) {
+            throw new Error('Google authentication returned invalid user data');
           }
 
           // Format payload safely for Backend
           const payload = {
-            idToken: googleUser.authentication?.idToken || googleUser.idToken || '',
-            accessToken: googleUser.authentication?.accessToken || googleUser.accessToken || '',
-            email: googleUser.email,
-            name: googleUser.name || googleUser.displayName || googleUser.givenName || 'User',
-            picture: googleUser.imageUrl || googleUser.photoUrl || googleUser.picture || ''
+            idToken,
+            credential: idToken,
+            accessToken,
+            email,
+            name,
+            picture
           };
 
           const result = await loginWithGoogle(payload);
 
           if (!result || !result.success) {
-            setError(result?.message || 'Google verification failed.');
+            const failMsg = result?.message || 'Server authentication failed';
+            setError(failMsg);
+            alert('Login Failed: ' + failMsg);
           } else if (result.requiresVerification) {
             navigate('/verify-email', { state: { email: result.email, message: result.message } });
           } else {
-            const activeUser = result.user || user;
+            const activeUser = result.user || user || { name, email };
             if (hasPhone(activeUser)) {
               setShowMobilePrompt(false);
               const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
@@ -205,12 +220,10 @@ export default function Auth() {
           if (isUserCancelled) {
             return;
           }
-          console.warn('[Native GoogleAuth] Fallback to in-app Web OAuth:', nativeErr);
-          try {
-            handleGoogleLoginCustom();
-          } catch (fbErr) {
-            setError('Google sign-in could not be initiated. Please log in with Email and Password.');
-          }
+          console.error('[Native GoogleAuth] Native sign-in error:', nativeErr);
+          const alertMsg = 'Google Sign-In failed: ' + (errMsg || 'Network or account selection error');
+          setError(alertMsg);
+          alert(alertMsg);
           return;
         }
       } else {
@@ -223,7 +236,11 @@ export default function Auth() {
       }
     } catch (outerErr) {
       if (outerErr?.message !== 'GOOGLE_TIMEOUT') {
-        setError(outerErr.response?.data?.message || outerErr.message || 'Google Sign-In failed');
+        const outMsg = outerErr.response?.data?.message || outerErr.message || 'Google Sign-In failed';
+        setError(outMsg);
+        if (Capacitor.isNativePlatform()) {
+          alert('Google Sign-In encountered an error: ' + outMsg);
+        }
       }
     } finally {
       if (safetyTimer) clearTimeout(safetyTimer);
