@@ -86,10 +86,12 @@ export default function Auth() {
     checkUrlToken();
   }, [login, navigate]);
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const handleGoogleLoginCustom = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setError('');
-      setSubmitting(true);
+      setGoogleLoading(true);
       try {
         const result = await loginWithGoogle(null, tokenResponse.access_token);
         if (!result || !result.success) {
@@ -114,11 +116,13 @@ export default function Auth() {
         console.error('Google login processing error:', authErr);
         setError(authErr.response?.data?.message || authErr.message || 'Google authentication encountered an error.');
       } finally {
+        setGoogleLoading(false);
         setSubmitting(false);
       }
     },
     onError: (err) => {
       console.warn('In-App Google authentication error:', err);
+      setGoogleLoading(false);
       setSubmitting(false);
       if (err?.error && err.error !== 'popup_closed_by_user') {
         setError(`Google sign-in error: ${err.error_description || err.error}`);
@@ -126,96 +130,105 @@ export default function Auth() {
     },
     onNonOAuthError: (err) => {
       console.warn('Google non-OAuth error:', err);
+      setGoogleLoading(false);
       setSubmitting(false);
     }
   });
 
   const handleGoogleClick = async () => {
     setError('');
-    setSubmitting(true);
+    setGoogleLoading(true);
 
-    // Fail-safe timeout to prevent button permanently stuck in 'Authenticating...'
-    const safetyTimeout = setTimeout(() => {
-      setSubmitting(false);
-    }, 25000);
+    let safetyTimer = null;
+    try {
+      // 10-second timeout safeguard to ensure the button NEVER hangs permanently
+      const timeoutPromise = new Promise((_, reject) => {
+        safetyTimer = setTimeout(() => {
+          reject(new Error('GOOGLE_TIMEOUT'));
+        }, 10000);
+      });
 
-    if (Capacitor.isNativePlatform()) {
-      try {
-        // Defensive initialization
+      if (Capacitor.isNativePlatform()) {
         try {
-          await GoogleAuth.initialize({
-            clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
-            scopes: ['profile', 'email'],
-            grantOfflineAccess: true
-          });
-        } catch (initErr) {
-          console.warn('[Native GoogleAuth] Init notice:', initErr);
-        }
-
-        const googleUser = await GoogleAuth.signIn();
-        const credential = googleUser?.authentication?.idToken || googleUser?.idToken;
-        const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken;
-
-        if (credential || accessToken) {
-          const result = await loginWithGoogle(credential, accessToken);
-          clearTimeout(safetyTimeout);
-          setSubmitting(false);
-
-          if (!result || !result.success) {
-            setError(result?.message || 'Google verification failed.');
-          } else if (result.requiresVerification) {
-            navigate('/verify-email', { state: { email: result.email, message: result.message } });
-          } else {
-            const activeUser = result.user || user;
-            if (hasPhone(activeUser)) {
-              setShowMobilePrompt(false);
-              const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
-              if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
-                navigate('/admin', { replace: true });
-              } else {
-                navigate('/dashboard', { replace: true });
-              }
-            } else {
-              setShowMobilePrompt(true);
+          const nativeSignIn = (async () => {
+            try {
+              await GoogleAuth.initialize({
+                clientId: '40902555112-7p9ga25odid8onlj8ehtbmn3jclqfos5.apps.googleusercontent.com',
+                scopes: ['profile', 'email'],
+                grantOfflineAccess: true
+              });
+            } catch (initErr) {
+              console.warn('[Native GoogleAuth] Init notice:', initErr);
             }
+            return await GoogleAuth.signIn();
+          })();
+
+          const googleUser = await Promise.race([nativeSignIn, timeoutPromise]);
+          const credential = googleUser?.authentication?.idToken || googleUser?.idToken;
+          const accessToken = googleUser?.authentication?.accessToken || googleUser?.accessToken;
+
+          if (credential || accessToken) {
+            const result = await loginWithGoogle(credential, accessToken);
+            if (!result || !result.success) {
+              setError(result?.message || 'Google verification failed.');
+            } else if (result.requiresVerification) {
+              navigate('/verify-email', { state: { email: result.email, message: result.message } });
+            } else {
+              const activeUser = result.user || user;
+              if (hasPhone(activeUser)) {
+                setShowMobilePrompt(false);
+                const role = activeUser?.role ? String(activeUser.role).toLowerCase() : '';
+                if (role === 'admin' || role === 'manager' || role === 'system_admin' || role === 'system-admin') {
+                  navigate('/admin', { replace: true });
+                } else {
+                  navigate('/dashboard', { replace: true });
+                }
+              } else {
+                setShowMobilePrompt(true);
+              }
+            }
+            return;
+          }
+        } catch (nativeErr) {
+          const errMsg = String(nativeErr?.message || nativeErr || '');
+          const isUserCancelled = errMsg.includes('12501') || errMsg.includes('cancel') || errMsg.includes('USER_CANCELLED') || errMsg.includes('popup_closed');
+          if (isUserCancelled) {
+            return;
+          }
+          console.warn('[Native GoogleAuth] Fallback to in-app Web OAuth:', nativeErr);
+          try {
+            handleGoogleLoginCustom();
+            setTimeout(() => {
+              setGoogleLoading(false);
+              setSubmitting(false);
+            }, 10000);
+          } catch (fbErr) {
+            setError('Google sign-in could not be initiated. Please log in with Email and Password.');
           }
           return;
-        } else {
-          // Native returned no credentials, cleanly fall back to web OAuth
-          clearTimeout(safetyTimeout);
-          handleGoogleLoginCustom();
-          return;
         }
-      } catch (nativeErr) {
-        clearTimeout(safetyTimeout);
-        console.warn('[Native GoogleAuth] Native sign-in notice. Attempting web OAuth fallback:', nativeErr);
-        const errMsg = String(nativeErr?.message || nativeErr || '');
-        const isUserCancelled = errMsg.includes('12501') || errMsg.includes('cancel') || errMsg.includes('USER_CANCELLED') || errMsg.includes('popup_closed');
-        
-        if (isUserCancelled) {
-          setSubmitting(false);
-          return;
-        }
-
-        // Clean fallback to in-app Web OAuth without throwing raw crash messages
+      } else {
+        // Standard Web Browser flow
         try {
           handleGoogleLoginCustom();
-        } catch (fallbackErr) {
-          console.error('[Google Fallback] In-App OAuth failed:', fallbackErr);
-          setSubmitting(false);
-          setError('Google sign-in is temporarily unavailable. Please sign in using your Email & Password.');
+          setTimeout(() => {
+            setGoogleLoading(false);
+            setSubmitting(false);
+          }, 10000);
+        } catch (e) {
+          setError('Failed to initiate Google sign-in.');
         }
-        return;
       }
-    } else {
-      // Web environment
-      clearTimeout(safetyTimeout);
-      try {
-        handleGoogleLoginCustom();
-      } catch (e) {
+    } catch (outerErr) {
+      if (outerErr?.message !== 'GOOGLE_TIMEOUT') {
+        setError('Google sign-in was interrupted. Please try again.');
+      }
+    } finally {
+      if (safetyTimer) clearTimeout(safetyTimer);
+      setTimeout(() => {
+        setGoogleLoading(false);
         setSubmitting(false);
-        setError('Failed to initiate Google sign-in.');
-      }
+      }, 500);
     }
   };
 
@@ -516,10 +529,10 @@ export default function Auth() {
 
                 <button
                   onClick={() => handleGoogleClick()}
-                  disabled={submitting}
+                  disabled={submitting || googleLoading}
                   className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-700 font-bold rounded-xl py-3 flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-60"
                 >
-                  {submitting ? (
+                  {googleLoading ? (
                     <div className="w-5 h-5 border-2 border-slate-300 border-t-prasatek-primary rounded-full animate-spin"></div>
                   ) : (
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -529,7 +542,7 @@ export default function Auth() {
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
                   )}
-                  <span>{submitting ? 'Authenticating...' : 'Sign in with Google'}</span>
+                  <span>{googleLoading ? 'Authenticating...' : 'Sign in with Google'}</span>
                 </button>
               </div>
             )}

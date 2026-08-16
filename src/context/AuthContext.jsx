@@ -54,12 +54,17 @@ export const AuthProvider = ({ children }) => {
         try {
           const res = await axios.get('/api/auth/me');
           if (res.data) {
-            updateUserState(res.data);
+            const fetched = res.data?.user || res.data;
+            if (fetched && typeof fetched === 'object' && Object.keys(fetched).length > 0) {
+              updateUserState(fetched);
+            }
           }
         } catch (error) {
           console.error('Failed to fetch user:', error);
-          // Token might have expired or user suspended
-          logout();
+          // Only clear session on 401 or 403 (unauthorized/forbidden)
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            logout();
+          }
         }
       }
       setLoading(false);
@@ -101,10 +106,17 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (emailOrUserData, password) => {
     if (typeof emailOrUserData === 'object') {
-      // Direct payload state update from settings/upgrade forms
-      const { token: userToken, ...userData } = emailOrUserData;
-      if (userToken) setToken(userToken);
-      if (Object.keys(userData).length > 0) {
+      // Direct payload state update from forms
+      const userToken = emailOrUserData.token || emailOrUserData.jwt;
+      const userData = emailOrUserData.user || (({ token, jwt, message, ...rest }) => rest)(emailOrUserData);
+      if (userToken) {
+        setToken(userToken);
+        try {
+          localStorage.setItem('token', userToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+        } catch (e) {}
+      }
+      if (userData && Object.keys(userData).length > 0) {
         updateUserState(userData);
       }
       return { success: true, user: userData, token: userToken };
@@ -112,9 +124,19 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const res = await axios.post('/api/auth/login', { email: emailOrUserData, password });
-      const { token: userToken, ...userData } = res.data;
-      setToken(userToken);
-      updateUserState(userData);
+      const userToken = res.data?.token || res.data?.jwt;
+      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      
+      if (userToken) {
+        setToken(userToken);
+        try {
+          localStorage.setItem('token', userToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+        } catch (e) {}
+      }
+      if (userData && Object.keys(userData).length > 0) {
+        updateUserState(userData);
+      }
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       if (error.response?.data?.requiresVerification) {
@@ -127,7 +149,7 @@ export const AuthProvider = ({ children }) => {
       }
       return {
         success: false,
-        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? `Unable to connect to backend server at ${axios.defaults.baseURL || 'http://localhost:5000'}. Please ensure your local backend server is running.` : (error.message || 'Login failed'))
+        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Unable to connect to server. Please check your internet connection.' : (error.message || 'Login failed'))
       };
     }
   };
@@ -135,7 +157,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (credential, accessToken) => {
     try {
       const res = await axios.post('/api/auth/google', { credential, accessToken });
-      if (res.data.requiresVerification) {
+      if (res.data?.requiresVerification) {
         return {
           success: true,
           requiresVerification: true,
@@ -143,7 +165,9 @@ export const AuthProvider = ({ children }) => {
           message: res.data.message
         };
       }
-      const { token: userToken, ...userData } = res.data;
+      const userToken = res.data?.token || res.data?.jwt;
+      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      
       if (userToken) {
         setToken(userToken);
         try {
@@ -158,7 +182,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? `Unable to connect to backend server at ${axios.defaults.baseURL || 'http://localhost:5000'}. Please ensure your local backend server is running.` : (error.message || 'Google login failed'))
+        message: error.response?.data?.message || (error.code === 'ERR_NETWORK' ? 'Unable to connect to server. Please check your internet connection.' : (error.message || 'Google login failed'))
       };
     }
   };
@@ -166,7 +190,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, mobile) => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password, mobile });
-      if (res.data.requiresVerification) {
+      if (res.data?.requiresVerification) {
         return {
           success: true,
           requiresVerification: true,
@@ -174,9 +198,18 @@ export const AuthProvider = ({ children }) => {
           message: res.data.message
         };
       }
-      const { token: userToken, ...userData } = res.data;
-      setToken(userToken);
-      updateUserState(userData);
+      const userToken = res.data?.token || res.data?.jwt;
+      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      if (userToken) {
+        setToken(userToken);
+        try {
+          localStorage.setItem('token', userToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+        } catch (e) {}
+      }
+      if (userData && Object.keys(userData).length > 0) {
+        updateUserState(userData);
+      }
       return { success: true, user: userData, token: userToken };
     } catch (error) {
       return {
@@ -189,10 +222,19 @@ export const AuthProvider = ({ children }) => {
   const verifyEmail = async (email, code) => {
     try {
       const res = await axios.post('/api/auth/verify', { email, code });
-      const { token: userToken, message, ...userData } = res.data;
-      if (userToken) setToken(userToken);
-      if (userData && Object.keys(userData).length > 0) updateUserState(userData);
-      return { success: true, message: message || 'Email verified successfully!', user: userData };
+      const userToken = res.data?.token || res.data?.jwt;
+      const userData = res.data?.user || (res.data ? (({ token, jwt, message, ...rest }) => rest)(res.data) : null);
+      if (userToken) {
+        setToken(userToken);
+        try {
+          localStorage.setItem('token', userToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
+        } catch (e) {}
+      }
+      if (userData && Object.keys(userData).length > 0) {
+        updateUserState(userData);
+      }
+      return { success: true, message: res.data?.message || 'Email verified successfully!', user: userData };
     } catch (error) {
       return {
         success: false,

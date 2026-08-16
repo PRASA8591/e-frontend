@@ -9,6 +9,7 @@ import NotificationDropdown from '../components/NotificationDropdown';
 import VerificationModal from '../components/VerificationModal';
 import SmsReaderModal from '../components/SmsReaderModal';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { getLocalAccounts, getLocalTransactions } from '../services/db';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle);
 
@@ -139,12 +140,26 @@ export default function Dashboard() {
         axios.get('/api/accounts'),
         axios.get('/api/transactions')
       ]);
-      setAccounts(Array.isArray(accRes.data) ? accRes.data : []);
-      setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
+      const accountsList = Array.isArray(accRes.data) 
+        ? accRes.data 
+        : (Array.isArray(accRes.data?.accounts) ? accRes.data.accounts : []);
+      const transactionsList = Array.isArray(txRes.data) 
+        ? txRes.data 
+        : (Array.isArray(txRes.data?.transactions) ? txRes.data.transactions : []);
+      
+      setAccounts(accountsList);
+      setTransactions(transactionsList);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setAccounts([]);
-      setTransactions([]);
+      console.warn('Backend fetch notice, loading from local offline store:', error?.message || error);
+      try {
+        const localAccounts = await getLocalAccounts();
+        const localTxs = await getLocalTransactions();
+        setAccounts(Array.isArray(localAccounts) ? localAccounts : []);
+        setTransactions(Array.isArray(localTxs) ? localTxs : []);
+      } catch (dbErr) {
+        setAccounts([]);
+        setTransactions([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -161,7 +176,7 @@ export default function Dashboard() {
     return () => {
       window.removeEventListener('expense_tracker_tx_updated', handleTxUpdate);
     };
-  }, []);
+  }, [user?._id]);
 
   const isAnyModalOpen = showAccModal || showConfirm || showAlert || showUpgradeModal || showEditTxModal || showSmsReaderModal || showVerifyModal;
 
@@ -751,7 +766,7 @@ export default function Dashboard() {
         </div>
 
         {/* Verification Alert Banner */}
-        {user && !user.isVerified && user.role !== 'admin' && (
+        {user && user.isVerified === false && Boolean(user.email) && user.role !== 'admin' && (
           <div className="mx-4 md:mx-6 mt-4 p-4 bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
@@ -762,7 +777,7 @@ export default function Dashboard() {
               <div>
                 <h3 className="font-extrabold text-sm md:text-base">Email Verification Required</h3>
                 <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                  Your email (<strong>{user.email}</strong>) is not verified. Please verify your email before using the system.
+                  Your email (<strong>{user.email || 'associated with your account'}</strong>) is not verified. Please verify your email before using the system.
                 </p>
               </div>
             </div>
