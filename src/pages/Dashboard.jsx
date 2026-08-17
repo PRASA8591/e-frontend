@@ -19,9 +19,30 @@ const fxSymbols = { RS: 'RS ', USD: '$', EUR: '€', GBP: '£', JPY: '¥', AUD: 
 export default function Dashboard() {
   const { user, logout, updateBudget, login } = useAuth();
   
-  const [accounts, setAccounts] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_accounts');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [transactions, setTransactions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_transactions');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cachedAcc = localStorage.getItem('cached_accounts');
+      const cachedTx = localStorage.getItem('cached_transactions');
+      if (cachedAcc || cachedTx || user) return false;
+    } catch (e) {}
+    return true;
+  });
 
   // Safe Array references to avoid null/undefined rendering crashes
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
@@ -149,6 +170,10 @@ export default function Dashboard() {
       
       setAccounts(accountsList);
       setTransactions(transactionsList);
+      try {
+        localStorage.setItem('cached_accounts', JSON.stringify(accountsList));
+        localStorage.setItem('cached_transactions', JSON.stringify(transactionsList));
+      } catch (e) {}
     } catch (error) {
       console.warn('Backend fetch notice, loading from local offline store:', error?.message || error);
       try {

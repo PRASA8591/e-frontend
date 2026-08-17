@@ -14,7 +14,14 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cachedToken = localStorage.getItem('token');
+      const cachedUser = localStorage.getItem('user');
+      if (!cachedToken || cachedUser) return false;
+    } catch (e) {}
+    return true;
+  });
 
   // Helper to safely update user state & sync with LocalStorage
   const updateUserState = (newUserData) => {
@@ -47,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Load user profile if token is present
+  // Load user profile in background if token is present (non-blocking for UI render)
   useEffect(() => {
     const fetchUser = async () => {
       if (token) {
